@@ -2,10 +2,10 @@
   "version": 2,
   "builds": [
     {
-      "src": "dist/index.cjs",
+      "src": "package.json",
       "use": "@vercel/node",
       "config": {
-        "includeFiles": ["dist/public/**"]
+        "includeFiles": ["dist/**"]
       }
     }
   ],
