@@ -133,21 +133,39 @@ export default function ManagerDashboard() {
   // Geocode address to coordinates
   const geocodeAddress = async (address: string): Promise<{lat: number, lng: number} | null> => {
     try {
+      console.log(`🌍 Geocoding address: "${address}"`);
+      
       // Using Nominatim (OpenStreetMap) geocoding - free and no API key needed
       const response = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`
+        `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(address)}&limit=1`,
+        {
+          headers: {
+            'User-Agent': 'RideWithAlert/1.0'
+          }
+        }
       );
+      
+      if (!response.ok) {
+        console.error(`❌ Geocoding API error: ${response.status} ${response.statusText}`);
+        return null;
+      }
+      
       const data = await response.json();
+      console.log(`🔍 Geocoding response for "${address}":`, data);
       
       if (data && data.length > 0) {
-        return {
+        const coords = {
           lat: parseFloat(data[0].lat),
           lng: parseFloat(data[0].lon)
         };
+        console.log(`✅ Geocoded "${address}" to:`, coords);
+        return coords;
       }
+      
+      console.warn(`⚠️ No geocoding results found for: "${address}"`);
       return null;
     } catch (error) {
-      console.error("Geocoding error:", error);
+      console.error("❌ Geocoding error:", error);
       return null;
     }
   };
