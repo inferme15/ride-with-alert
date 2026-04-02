@@ -59,9 +59,11 @@ async function buildAll() {
     external: externals,
     logLevel: "info",
   });
+
+  console.log("Build completed successfully!");
 }
 
 buildAll().catch((err) => {
-  console.error(err);
+  console.error("Build failed:", err);
   process.exit(1);
 });
