@@ -4,7 +4,7 @@ import {
   type Manager, type Driver, type Vehicle, type Trip, type Emergency, type FuelLog, type ServiceLog, type EnhancedTrip,
   type InsertManager, type InsertDriver, type InsertVehicle, type InsertTrip, type InsertEmergency, type InsertFuelLog, type InsertServiceLog
 } from "@shared/schema";
-import { eq, desc, and } from "drizzle-orm";
+import { eq, desc, and, or, isNull, ne } from "drizzle-orm";
 
 export interface IStorage {
   // Manager
@@ -15,6 +15,7 @@ export interface IStorage {
   getDriverByDriverNumber(driverNumber: string): Promise<Driver | undefined>;
   createDriver(driver: InsertDriver): Promise<Driver>;
   getAllDrivers(): Promise<Driver[]>;
+  getAvailableDrivers(): Promise<Driver[]>;
 
   // Vehicle
   getVehicleByVehicleNumber(vehicleNumber: string): Promise<Vehicle | undefined>;
@@ -22,6 +23,7 @@ export interface IStorage {
   updateVehicleStatus(vehicleNumber: string, updates: Partial<Vehicle>): Promise<Vehicle>;
   updateVehicle(vehicleNumber: string, updates: Partial<Vehicle>): Promise<Vehicle>;
   getAllVehicles(): Promise<Vehicle[]>;
+  getAvailableVehicles(): Promise<Vehicle[]>;
 
   // Driver
   updateDriver(driverNumber: string, updates: Partial<Driver>): Promise<Driver>;
@@ -88,6 +90,30 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(drivers);
   }
 
+  async getAvailableDrivers(): Promise<Driver[]> {
+    // Get drivers that are NOT in active trips
+    const result = await db
+      .select()
+      .from(drivers)
+      .leftJoin(trips, eq(drivers.driverNumber, trips.driverNumber))
+      .where(
+        or(
+          isNull(trips.status),
+          ne(trips.status, "ACTIVE")
+        )
+      );
+    
+    // Extract unique drivers (in case of multiple completed trips)
+    const uniqueDrivers = new Map();
+    result.forEach(row => {
+      if (row.drivers && !uniqueDrivers.has(row.drivers.driverNumber)) {
+        uniqueDrivers.set(row.drivers.driverNumber, row.drivers);
+      }
+    });
+    
+    return Array.from(uniqueDrivers.values());
+  }
+
   async getVehicleByVehicleNumber(vehicleNumber: string): Promise<Vehicle | undefined> {
     const [vehicle] = await db.select().from(vehicles).where(eq(vehicles.vehicleNumber, vehicleNumber));
     return vehicle;
@@ -124,6 +150,30 @@ export class DatabaseStorage implements IStorage {
 
   async getAllVehicles(): Promise<Vehicle[]> {
     return await db.select().from(vehicles);
+  }
+
+  async getAvailableVehicles(): Promise<Vehicle[]> {
+    // Get vehicles that are NOT in active trips
+    const result = await db
+      .select()
+      .from(vehicles)
+      .leftJoin(trips, eq(vehicles.vehicleNumber, trips.vehicleNumber))
+      .where(
+        or(
+          isNull(trips.status),
+          ne(trips.status, "ACTIVE")
+        )
+      );
+    
+    // Extract unique vehicles (in case of multiple completed trips)
+    const uniqueVehicles = new Map();
+    result.forEach(row => {
+      if (row.vehicles && !uniqueVehicles.has(row.vehicles.vehicleNumber)) {
+        uniqueVehicles.set(row.vehicles.vehicleNumber, row.vehicles);
+      }
+    });
+    
+    return Array.from(uniqueVehicles.values());
   }
 
   async createTrip(trip: InsertTrip): Promise<Trip> {

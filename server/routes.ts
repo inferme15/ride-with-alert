@@ -629,8 +629,17 @@ Login at: ${req.protocol}://${req.get('host')}/login/driver`;
   });
 
   app.get(api.vehicles.list.path, async (req, res) => {
-    const vehicles = await storage.getAllVehicles();
-    res.json(vehicles);
+    const availableOnly = req.query.available === 'true';
+    
+    if (availableOnly) {
+      // Get vehicles that are NOT in active trips
+      const vehicles = await storage.getAvailableVehicles();
+      res.json(vehicles);
+    } else {
+      // Get all vehicles
+      const vehicles = await storage.getAllVehicles();
+      res.json(vehicles);
+    }
   });
 
   // Test endpoint to create a trip with route data
@@ -940,8 +949,17 @@ Login at: ${req.protocol}://${req.get('host')}/login/driver`;
   });
 
   app.get(api.drivers.list.path, async (req, res) => {
-    const drivers = await storage.getAllDrivers();
-    res.json(drivers);
+    const availableOnly = req.query.available === 'true';
+    
+    if (availableOnly) {
+      // Get drivers that are NOT in active trips
+      const drivers = await storage.getAvailableDrivers();
+      res.json(drivers);
+    } else {
+      // Get all drivers
+      const drivers = await storage.getAllDrivers();
+      res.json(drivers);
+    }
   });
 
 

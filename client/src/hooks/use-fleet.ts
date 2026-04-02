@@ -14,12 +14,34 @@ export function useVehicles() {
   });
 }
 
+export function useAvailableVehicles() {
+  return useQuery({
+    queryKey: [api.vehicles.list.path, 'available'],
+    queryFn: async () => {
+      const res = await fetch(`${api.vehicles.list.path}?available=true`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch available vehicles");
+      return api.vehicles.list.responses[200].parse(await res.json());
+    },
+  });
+}
+
 export function useDrivers() {
   return useQuery({
     queryKey: [api.drivers.list.path],
     queryFn: async () => {
       const res = await fetch(api.drivers.list.path, { credentials: "include" });
       if (!res.ok) throw new Error("Failed to fetch drivers");
+      return api.drivers.list.responses[200].parse(await res.json());
+    },
+  });
+}
+
+export function useAvailableDrivers() {
+  return useQuery({
+    queryKey: [api.drivers.list.path, 'available'],
+    queryFn: async () => {
+      const res = await fetch(`${api.drivers.list.path}?available=true`, { credentials: "include" });
+      if (!res.ok) throw new Error("Failed to fetch available drivers");
       return api.drivers.list.responses[200].parse(await res.json());
     },
   });

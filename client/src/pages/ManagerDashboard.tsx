@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
-import { useVehicles, useDrivers, useTrips, useRegisterVehicle, useRegisterDriver, useAssignTrip, useCompleteTrip, useCancelTrip, useUpdateVehicle, useUpdateDriver } from "@/hooks/use-fleet";
+import { useVehicles, useDrivers, useTrips, useRegisterVehicle, useRegisterDriver, useAssignTrip, useCompleteTrip, useCancelTrip, useUpdateVehicle, useUpdateDriver, useAvailableDrivers, useAvailableVehicles } from "@/hooks/use-fleet";
 import { useEmergencies } from "@/hooks/use-emergency";
 import { useSocket as useSocketHook } from "@/hooks/use-socket";
 import { Button } from "@/components/ui/button";
@@ -27,6 +27,8 @@ export default function ManagerDashboard() {
   // Data Fetching
   const { data: vehicles } = useVehicles();
   const { data: drivers } = useDrivers();
+  const { data: availableVehicles } = useAvailableVehicles();
+  const { data: availableDrivers } = useAvailableDrivers();
   const { data: trips, refetch: refetchTrips } = useTrips();
   const { data: emergencies, refetch: refetchEmergencies } = useEmergencies();
 
@@ -1440,11 +1442,16 @@ export default function ManagerDashboard() {
                         >
                            <SelectTrigger><SelectValue placeholder="Choose vehicle" /></SelectTrigger>
                            <SelectContent>
-                             {vehicles?.map(v => (
+                             {availableVehicles?.map(v => (
                                <SelectItem key={v.vehicleNumber} value={v.vehicleNumber}>
                                  {v.vehicleNumber} ({v.vehicleType})
                                </SelectItem>
                              ))}
+                             {(!availableVehicles || availableVehicles.length === 0) && (
+                               <SelectItem value="" disabled>
+                                 No available vehicles (all are on active trips)
+                               </SelectItem>
+                             )}
                            </SelectContent>
                         </Select>
                       </div>
@@ -1456,11 +1463,16 @@ export default function ManagerDashboard() {
                         >
                            <SelectTrigger><SelectValue placeholder="Choose driver" /></SelectTrigger>
                            <SelectContent>
-                             {drivers?.map(d => (
+                             {availableDrivers?.map(d => (
                                <SelectItem key={d.driverNumber} value={d.driverNumber}>
                                  {d.name} ({d.driverNumber})
                                </SelectItem>
                              ))}
+                             {(!availableDrivers || availableDrivers.length === 0) && (
+                               <SelectItem value="" disabled>
+                                 No available drivers (all are on active trips)
+                               </SelectItem>
+                             )}
                            </SelectContent>
                         </Select>
                       </div>
