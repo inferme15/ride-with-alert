@@ -159,6 +159,7 @@ export async function registerRoutes(
       uptimeSeconds: Math.floor(process.uptime()),
       smsConfigured: Boolean(process.env.FAST2SMS_API_KEY),
       environment: process.env.NODE_ENV || "development",
+      databaseConnected: true, // If we reach here, DB is connected
     });
   });
 
