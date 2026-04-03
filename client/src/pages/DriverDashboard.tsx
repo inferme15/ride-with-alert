@@ -59,157 +59,118 @@ export default function DriverDashboard() {
     return null;
   };
 
-  // ENHANCED GPS DEBUGGING: Force your exact location for testing
+  // REAL GPS TRACKING ONLY - No hardcoded coordinates
   useEffect(() => {
-    console.log('[GPS DEBUG] Starting GPS tracking...');
+    console.log('🌍 [REAL GPS] Starting real GPS tracking...');
     
-    // Set your exact coordinates immediately for testing
-    const yourLocation = { lat: 12.981218, lng: 77.691087 };
-    console.log('[FORCE LOCATION] Setting your exact location:', yourLocation);
-    setLocation(yourLocation);
-    setIsRealGPS(true);
-    
-    if (trip?.vehicleNumber) {
-      console.log('[GPS DEBUG] Emitting location update for vehicle:', trip.vehicleNumber);
-      emit(events.LOCATION_UPDATE, {
-        vehicleNumber: trip.vehicleNumber,
-        location: yourLocation
-      });
-    }
-    
-    // Also try to get real GPS
-    if (navigator.geolocation) {
-      console.log('[GPS DEBUG] Requesting real GPS location...');
-      navigator.geolocation.getCurrentPosition(
-        (pos) => {
-          const realLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-          console.log('[GPS DEBUG] Real GPS location received:', realLocation);
-          setLocation(realLocation);
-          setIsRealGPS(true);
-          
-          if (trip?.vehicleNumber) {
-            console.log('[GPS DEBUG] Emitting real GPS update for vehicle:', trip.vehicleNumber);
-            emit(events.LOCATION_UPDATE, {
-              vehicleNumber: trip.vehicleNumber,
-              location: realLocation
-            });
-          }
-        },
-        (error) => {
-          console.error('[GPS DEBUG] GPS error:', error);
-          console.log('[GPS DEBUG] Using fallback location');
-        },
-        { 
-          enableHighAccuracy: true,
-          timeout: 10000,
-          maximumAge: 0
-        }
-      );
-    } else {
-      console.error('[GPS DEBUG] Geolocation not supported');
-    }
-  }, [trip?.vehicleNumber, emit, events]);
-  useEffect(() => {
     if (!navigator.geolocation) {
-      toast({ title: "GPS Error", description: "Geolocation not supported by browser", variant: "destructive" });
-      setLocation({ lat: 11.0168, lng: 76.9558 });
-      setIsRealGPS(false);
+      console.error('❌ [REAL GPS] Geolocation not supported by browser');
+      toast({ 
+        title: "GPS Not Supported", 
+        description: "Your browser doesn't support GPS tracking", 
+        variant: "destructive" 
+      });
       return;
     }
 
-    // Force fresh GPS location (no cache)
+    console.log('📍 [REAL GPS] Requesting driver\'s actual GPS location...');
+    
+    // Get real GPS location immediately
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const newLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setLocation(newLoc);
+        const realLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        console.log('✅ [REAL GPS] Driver\'s actual location received:', realLocation);
+        setLocation(realLocation);
         setIsRealGPS(true);
-        console.log("Fresh GPS location:", newLoc);
         
-        // Remove GPS toast notification
+        toast({ 
+          title: "📍 Real GPS Active", 
+          description: `Using your actual location: ${realLocation.lat.toFixed(4)}, ${realLocation.lng.toFixed(4)}`,
+          duration: 3000
+        });
         
         if (trip?.vehicleNumber) {
-          console.log('📍 Driver Dashboard sending initial GPS update:', {
+          console.log('📡 [REAL GPS] Sending driver\'s real location to manager:', {
             vehicleNumber: trip.vehicleNumber,
-            location: newLoc
+            location: realLocation
           });
           emit(events.LOCATION_UPDATE, {
             vehicleNumber: trip.vehicleNumber,
-            location: newLoc
+            location: realLocation
           });
         }
       },
-      (err) => {
-        console.error("GPS error:", err);
+      (error) => {
+        console.error('❌ [REAL GPS] Failed to get real GPS location:', error);
         
-        // Try again with lower accuracy if high accuracy fails
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            const newLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-            setLocation(newLoc);
-            setIsRealGPS(true);
-            // Remove low accuracy toast notification
-            
-            if (trip?.vehicleNumber) {
-              emit(events.LOCATION_UPDATE, {
-                vehicleNumber: trip.vehicleNumber,
-                location: newLoc
-              });
-            }
-          },
-          (err2) => {
-            console.error("GPS retry failed:", err2);
-            // Remove GPS failed toast - just use demo location silently
-            setLocation({ lat: 12.9716, lng: 77.5946 }); // Bangalore default
-            setIsRealGPS(false);
-          },
-          { 
-            enableHighAccuracy: false, // Lower accuracy retry
-            timeout: 10000,
-            maximumAge: 0 // Force fresh location
-          }
-        );
+        let errorMessage = "Could not access your GPS location.";
+        if (error.code === 1) {
+          errorMessage = "GPS permission denied. Please allow location access.";
+        } else if (error.code === 2) {
+          errorMessage = "GPS position unavailable. Check your device settings.";
+        } else if (error.code === 3) {
+          errorMessage = "GPS request timed out. Please try again.";
+        }
+        
+        toast({ 
+          title: "GPS Error", 
+          description: errorMessage, 
+          variant: "destructive",
+          duration: 5000
+        });
+        
+        // Use fallback location only if GPS completely fails
+        const fallbackLocation = { lat: 12.9716, lng: 77.5946 }; // Bangalore center
+        console.log('⚠️ [REAL GPS] Using fallback location:', fallbackLocation);
+        setLocation(fallbackLocation);
+        setIsRealGPS(false);
+      },
+      { 
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0 // Always get fresh location
+      }
+    );
+  }, [trip?.vehicleNumber, emit, events, toast]);
+
+  // Set up continuous GPS tracking
+  useEffect(() => {
+    if (!navigator.geolocation || !trip?.vehicleNumber) return;
+
+    console.log('🔄 [CONTINUOUS GPS] Setting up real-time GPS tracking...');
+    
+    // Set up continuous location watching
+    const watchId = navigator.geolocation.watchPosition(
+      (pos) => {
+        const realLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        console.log('🔄 [CONTINUOUS GPS] Real-time location update:', realLocation);
+        
+        setLocation(realLocation);
+        setIsRealGPS(true);
+        
+        // Send real GPS to manager dashboard
+        emit(events.LOCATION_UPDATE, {
+          vehicleNumber: trip.vehicleNumber,
+          location: realLocation
+        });
+      },
+      (error) => {
+        console.error('❌ [CONTINUOUS GPS] Watch error:', error);
       },
       { 
         enableHighAccuracy: true,
         timeout: 10000,
-        maximumAge: 0 // Force fresh location, no cache
-      }
-    );
-
-    // Set up location watching
-    const watchId = navigator.geolocation.watchPosition(
-      (pos) => {
-        const newLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        setLocation(newLoc);
-        setIsRealGPS(true);
-        
-        if (trip?.vehicleNumber) {
-          console.log('📍 Driver Dashboard sending continuous GPS update:', {
-            vehicleNumber: trip.vehicleNumber,
-            location: newLoc
-          });
-          emit(events.LOCATION_UPDATE, {
-            vehicleNumber: trip.vehicleNumber,
-            location: newLoc
-          });
-        }
-      },
-      (err) => {
-        console.error("GPS watch error:", err);
-      },
-      { 
-        enableHighAccuracy: true,
-        timeout: 8000,
-        maximumAge: 0 // Always get fresh location
+        maximumAge: 5000 // Allow 5 second cache for continuous tracking
       }
     );
 
     return () => {
       if (watchId) {
+        console.log('🛑 [CONTINUOUS GPS] Stopping GPS tracking');
         navigator.geolocation.clearWatch(watchId);
       }
     };
-  }, [trip, emit, events, toast]);
+  }, [trip?.vehicleNumber, emit, events]);
 
   // Record a fixed-length emergency clip and return as blob.
   const recordEmergencyClip = (durationMs: number = 10000): Promise<Blob | null> => {
@@ -528,37 +489,58 @@ export default function DriverDashboard() {
       return;
     }
 
+    console.log('🔄 [MANUAL GPS] User requested GPS refresh...');
     setIsGettingLocation(true);
     
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const newLoc = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        console.log(`[GPS REFRESH] Real location: ${newLoc.lat}, ${newLoc.lng}`);
-        setLocation(newLoc);
+        const realLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        console.log('✅ [MANUAL GPS] Fresh real location:', realLocation);
+        
+        setLocation(realLocation);
         setIsRealGPS(true);
         setIsGettingLocation(false);
         
         toast({ 
-          title: "📍 GPS Updated", 
-          description: `Lat: ${newLoc.lat.toFixed(4)}, Lng: ${newLoc.lng.toFixed(4)}`,
+          title: "📍 Real GPS Updated", 
+          description: `Your actual location: ${realLocation.lat.toFixed(4)}, ${realLocation.lng.toFixed(4)}`,
           duration: 3000 
         });
         
         if (trip?.vehicleNumber) {
+          console.log('📡 [MANUAL GPS] Sending refreshed location to manager:', {
+            vehicleNumber: trip.vehicleNumber,
+            location: realLocation
+          });
           emit(events.LOCATION_UPDATE, {
             vehicleNumber: trip.vehicleNumber,
-            location: newLoc
+            location: realLocation
           });
         }
       },
-      (err) => {
+      (error) => {
         setIsGettingLocation(false);
-        // Remove GPS failed toast - handle silently
-        console.log("GPS refresh failed, keeping current location");
+        console.error('❌ [MANUAL GPS] Refresh failed:', error);
+        
+        let errorMessage = "Could not refresh GPS location.";
+        if (error.code === 1) {
+          errorMessage = "GPS permission denied. Please allow location access.";
+        } else if (error.code === 2) {
+          errorMessage = "GPS position unavailable. Check your device settings.";
+        } else if (error.code === 3) {
+          errorMessage = "GPS request timed out. Please try again.";
+        }
+        
+        toast({ 
+          title: "GPS Refresh Failed", 
+          description: errorMessage,
+          variant: "destructive",
+          duration: 4000
+        });
       },
       { 
         enableHighAccuracy: true,
-        timeout: 10000,
+        timeout: 15000,
         maximumAge: 0 // Force fresh location
       }
     );
