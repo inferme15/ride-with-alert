@@ -1,5 +1,4 @@
 import crypto from "crypto";
-import { spawn } from "child_process";
 import fs from "fs";
 import path from "path";
 
@@ -42,9 +41,13 @@ function formatPhoneNumber(phoneNumber: string): string {
  * @param phoneNumber - Recipient phone number
  * @param message - SMS message content
  */
-function displaySMSInNewTerminal(phoneNumber: string, message: string): void {
+/**
+ * Display SMS message in terminal (cross-platform)
+ * @param phoneNumber - Recipient phone number
+ * @param message - SMS message content
+ */
+function displaySMSInTerminal(phoneNumber: string, message: string): void {
   try {
-    // Create a temporary script to display the SMS
     const timestamp = new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' });
     const messageId = crypto.randomBytes(4).toString("hex").toUpperCase();
     
@@ -60,65 +63,30 @@ function displaySMSInNewTerminal(phoneNumber: string, message: string): void {
       recipientType = "Driver/Contact";
     }
 
-    // Use PowerShell display to avoid CMD parsing issues with multiline/unicode content.
-    const messageBase64 = Buffer.from(message, "utf8").toString("base64");
-    const psDisplay = `
-$Host.UI.RawUI.WindowTitle = "Fast2SMS Message - ${recipientType}"
-Write-Host ""
-Write-Host "============================================================================"
-Write-Host "                            SMS MESSAGE SENT"
-Write-Host "============================================================================"
-Write-Host ""
-Write-Host "TO: ${phoneNumber} (${recipientType})"
-Write-Host "TIME: ${timestamp}"
-Write-Host "MESSAGE ID: ${messageId}"
-Write-Host "SERVICE: Fast2SMS API"
-Write-Host ""
-Write-Host "============================================================================"
-Write-Host ""
-$msg = [System.Text.Encoding]::UTF8.GetString([System.Convert]::FromBase64String("${messageBase64}"))
-Write-Host $msg
-Write-Host ""
-Write-Host "============================================================================"
-Write-Host ""
-Write-Host "NOTE: This message was sent via Fast2SMS API."
-Write-Host ""
-Write-Host "============================================================================"
-Write-Host ""
-Read-Host "Press Enter to close this window"
-`;
+    // Display SMS in current terminal (works on both Windows and Linux)
+    console.log("\n" + "=".repeat(80));
+    console.log("                            SMS MESSAGE SENT");
+    console.log("=".repeat(80));
+    console.log("");
+    console.log(`TO: ${phoneNumber} (${recipientType})`);
+    console.log(`TIME: ${timestamp}`);
+    console.log(`MESSAGE ID: ${messageId}`);
+    console.log(`SERVICE: Fast2SMS API`);
+    console.log("");
+    console.log("=".repeat(80));
+    console.log("");
+    console.log(message);
+    console.log("");
+    console.log("=".repeat(80));
+    console.log("");
+    console.log("NOTE: This message was sent via Fast2SMS API.");
+    console.log("");
+    console.log("=".repeat(80));
+    console.log("");
 
-    // Create temporary batch file
-    const tempDir = path.join(process.cwd(), 'temp');
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
-    
-    const tempFile = path.join(tempDir, `sms_${Date.now()}_${messageId}.ps1`);
-    fs.writeFileSync(tempFile, psDisplay, 'utf8');
-
-    // Spawn new terminal window with PowerShell script
-    const child = spawn('cmd', ['/c', 'start', 'powershell', '-NoExit', '-ExecutionPolicy', 'Bypass', '-File', tempFile], {
-      detached: true,
-      stdio: 'ignore'
-    });
-
-    child.unref();
-
-    // Clean up temp file after 30 seconds
-    setTimeout(() => {
-      try {
-        if (fs.existsSync(tempFile)) {
-          fs.unlinkSync(tempFile);
-        }
-      } catch (error) {
-        // Ignore cleanup errors
-      }
-    }, 30000);
-
-    console.log(`[SMS DISPLAY] 📱 New terminal opened showing SMS to ${recipientType}`);
+    console.log(`[SMS DISPLAY] 📱 SMS displayed in terminal for ${recipientType}`);
   } catch (error) {
-    console.error(`[SMS DISPLAY ERROR] Failed to open new terminal:`, error);
+    console.error(`[SMS DISPLAY ERROR] Failed to display SMS:`, error);
   }
 }
 
@@ -131,8 +99,8 @@ Read-Host "Press Enter to close this window"
 export async function sendSMS(phoneNumber: string, message: string): Promise<{ success: boolean; messageId: string; error?: string }> {
   const FAST2SMS_API_KEY = process.env.FAST2SMS_API_KEY;
 
-  // ALWAYS display SMS in new terminal window first
-  displaySMSInNewTerminal(phoneNumber, message);
+  // ALWAYS display SMS in terminal first
+  displaySMSInTerminal(phoneNumber, message);
 
   // If Fast2SMS not configured, use simulation
   if (!FAST2SMS_API_KEY) {
