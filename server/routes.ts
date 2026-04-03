@@ -488,8 +488,24 @@ Login at: ${req.protocol}://${req.get('host')}/login/driver`;
         selectedRoute: selectedRoute || null
       });
     } catch (err) {
-      console.error("Trip assignment error:", err);
-      res.status(500).json({ message: "Internal server error" });
+      console.error("❌ [Trip Assignment] Error:", err);
+      console.error("❌ [Trip Assignment] Error details:", {
+        message: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack : undefined,
+        requestData: {
+          driverNumber,
+          vehicleNumber,
+          hasStartLocation: !!startLocation,
+          hasEndLocation: !!endLocation,
+          hasCoordinates: !!(startLatitude && startLongitude && endLatitude && endLongitude)
+        }
+      });
+      
+      res.status(500).json({ 
+        message: "Failed to assign trip", 
+        error: err instanceof Error ? err.message : "Internal server error",
+        details: "Check server logs for more information"
+      });
     }
   });
 
@@ -625,6 +641,31 @@ Login at: ${req.protocol}://${req.get('host')}/login/driver`;
     } catch (error) {
       console.error('[Clear Active Trips] Error:', error);
       res.status(500).json({ message: "Failed to clear active trips" });
+    }
+  });
+
+  // Debug endpoint to check database data
+  app.get("/api/debug/data", async (req, res) => {
+    try {
+      const drivers = await storage.getAllDrivers();
+      const vehicles = await storage.getAllVehicles();
+      const managers = await storage.getAllManagers();
+      
+      console.log(`[DEBUG DATA] Drivers: ${drivers.length}, Vehicles: ${vehicles.length}, Managers: ${managers.length}`);
+      
+      res.json({
+        drivers: drivers.map(d => ({ driverNumber: d.driverNumber, name: d.name })),
+        vehicles: vehicles.map(v => ({ vehicleNumber: v.vehicleNumber, vehicleType: v.vehicleType })),
+        managers: managers.map(m => ({ username: m.username })),
+        counts: {
+          drivers: drivers.length,
+          vehicles: vehicles.length,
+          managers: managers.length
+        }
+      });
+    } catch (error) {
+      console.error('[DEBUG DATA] Error:', error);
+      res.status(500).json({ error: error instanceof Error ? error.message : String(error) });
     }
   });
 

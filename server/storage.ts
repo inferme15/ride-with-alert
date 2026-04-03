@@ -9,6 +9,7 @@ import { eq, desc, and, or, isNull, ne } from "drizzle-orm";
 export interface IStorage {
   // Manager
   getManagerByUsername(username: string): Promise<Manager | undefined>;
+  getAllManagers(): Promise<Manager[]>;
   createManager(manager: InsertManager): Promise<Manager>;
 
   // Driver
@@ -69,6 +70,10 @@ export class DatabaseStorage implements IStorage {
   async getManagerByUsername(username: string): Promise<Manager | undefined> {
     const [manager] = await db.select().from(managers).where(eq(managers.username, username));
     return manager;
+  }
+
+  async getAllManagers(): Promise<Manager[]> {
+    return await db.select().from(managers);
   }
 
   async createManager(manager: InsertManager): Promise<Manager> {
