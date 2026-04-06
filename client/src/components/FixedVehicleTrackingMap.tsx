@@ -234,6 +234,11 @@ export function FixedVehicleTrackingMap({
     safetyScore: number;
   }>>([]);
   const [isMapReady, setIsMapReady] = useState(false);
+  
+  // Enhanced vehicle position with smooth transitions
+  const [smoothVehiclePosition, setSmoothVehiclePosition] = useState<[number, number] | null>(null);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const animationRef = useRef<number | null>(null);
 
   // Generate ALL route paths for visualization (like route analysis map)
   useEffect(() => {
@@ -305,7 +310,79 @@ export function FixedVehicleTrackingMap({
     }
   }, [currentLocation, destination, showRoute, routeGeometry, allRoutes, safetyMetrics]);
 
-  const vehiclePosition = simulatedPosition || (currentLocation ? [currentLocation.lat, currentLocation.lng] : [12.9716, 77.5946]);
+  // Smooth vehicle position animation
+  useEffect(() => {
+    const newPosition = simulatedPosition || (currentLocation ? [currentLocation.lat, currentLocation.lng] : null);
+    
+    if (!newPosition) {
+      setSmoothVehiclePosition(null);
+      return;
+    }
+
+    // If this is the first position or we're not animating, set immediately
+    if (!smoothVehiclePosition || !isRealGPS) {
+      setSmoothVehiclePosition(newPosition as [number, number]);
+      return;
+    }
+
+    // Animate smooth transition for real GPS updates
+    const startPosition = smoothVehiclePosition;
+    const endPosition = newPosition as [number, number];
+    
+    // Calculate distance to determine animation duration
+    const distance = Math.sqrt(
+      Math.pow(endPosition[0] - startPosition[0], 2) + 
+      Math.pow(endPosition[1] - startPosition[1], 2)
+    );
+    
+    // Skip animation if distance is too small (less than ~1 meter in degrees)
+    if (distance < 0.00001) {
+      setSmoothVehiclePosition(endPosition);
+      return;
+    }
+    
+    // Animation duration based on distance (faster for short distances)
+    const animationDuration = Math.min(Math.max(distance * 100000, 500), 2000); // 500ms to 2s
+    
+    setIsAnimating(true);
+    const startTime = Date.now();
+    
+    const animate = () => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min(elapsed / animationDuration, 1);
+      
+      // Easing function for smooth animation
+      const easeProgress = 1 - Math.pow(1 - progress, 3); // Ease-out cubic
+      
+      const currentLat = startPosition[0] + (endPosition[0] - startPosition[0]) * easeProgress;
+      const currentLng = startPosition[1] + (endPosition[1] - startPosition[1]) * easeProgress;
+      
+      setSmoothVehiclePosition([currentLat, currentLng]);
+      
+      if (progress < 1) {
+        animationRef.current = requestAnimationFrame(animate);
+      } else {
+        setIsAnimating(false);
+        setSmoothVehiclePosition(endPosition);
+      }
+    };
+    
+    // Cancel any existing animation
+    if (animationRef.current) {
+      cancelAnimationFrame(animationRef.current);
+    }
+    
+    animationRef.current = requestAnimationFrame(animate);
+    
+    // Cleanup function
+    return () => {
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+      }
+    };
+  }, [currentLocation, simulatedPosition, smoothVehiclePosition, isRealGPS]);
+
+  const vehiclePosition = smoothVehiclePosition || (currentLocation ? [currentLocation.lat, currentLocation.lng] : [12.9716, 77.5946]);
   const mapFacilities = (facilities || [])
     .map((facility: any, index: number) => {
       const lat = facility?.location?.lat ?? facility?.latitude;
@@ -473,7 +550,7 @@ export function FixedVehicleTrackingMap({
           </Marker>
         )}
 
-        {/* Vehicle marker */}
+        {/* Vehicle marker with enhanced real-time info */}
         {isMapReady && vehiclePosition && (
           <Marker
             position={vehiclePosition as [number, number]}
@@ -486,17 +563,23 @@ export function FixedVehicleTrackingMap({
                 </h3>
                 <p className="text-sm text-gray-600">Driver: {driverName}</p>
                 <p className="text-xs text-gray-500 mt-1">
-                  📍 {vehiclePosition[0].toFixed(4)}, {vehiclePosition[1].toFixed(4)}
+                  📍 {vehiclePosition[0].toFixed(6)}, {vehiclePosition[1].toFixed(6)}
                 </p>
-                <div className="flex gap-2 mt-2">
+                <div className="flex gap-2 mt-2 flex-wrap">
                   <Badge variant={isRealGPS ? "default" : "secondary"}>
                     {isRealGPS ? "📡 Real GPS" : "🎯 Simulated"}
                   </Badge>
                   {isPaused && <Badge variant="outline">⏸️ Paused</Badge>}
                   {isEmergency && <Badge variant="destructive">🚨 Emergency</Badge>}
+                  {isAnimating && <Badge variant="outline" className="text-green-600">🔄 Moving</Badge>}
                 </div>
                 {showRoute && (
                   <p className="text-xs mt-1">Progress: {Math.round(simulationProgress * 100)}%</p>
+                )}
+                {isRealGPS && (
+                  <div className="text-xs text-gray-500 mt-2">
+                    <p>🕒 Last Update: {new Date().toLocaleTimeString()}</p>
+                  </div>
                 )}
               </div>
             </Popup>

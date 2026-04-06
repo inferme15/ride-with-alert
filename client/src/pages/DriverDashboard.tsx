@@ -26,7 +26,7 @@ export default function DriverDashboard() {
   const [activeTab, setActiveTab] = useState<'map' | 'camera' | 'info'>('map');
 
   // State for GPS status
-  const [location, setLocation] = useState<{lat: number, lng: number} | null>(null);
+  const [location, setLocation] = useState<{lat: number, lng: number, accuracy?: number, timestamp?: number} | null>(null);
   const [isRealGPS, setIsRealGPS] = useState(false);
   const [isEmergencyActive, setIsEmergencyActive] = useState(false);
   const [statusMessage, setStatusMessage] = useState("Monitoring Active");
@@ -36,6 +36,12 @@ export default function DriverDashboard() {
   const [simulatedPosition, setSimulatedPosition] = useState<[number, number] | null>(null);
   const [simulationProgress, setSimulationProgress] = useState(0);
   const [driverNearbyFacilities, setDriverNearbyFacilities] = useState<any[]>([]);
+  
+  // Enhanced GPS tracking states
+  const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
+  const [gpsSpeed, setGpsSpeed] = useState<number | null>(null);
+  const [lastGpsUpdate, setLastGpsUpdate] = useState<number | null>(null);
+  const [gpsConnectionStatus, setGpsConnectionStatus] = useState<'connecting' | 'connected' | 'weak' | 'lost'>('connecting');
   
   // Real-time Analytics State
   const [currentRisk, setCurrentRisk] = useState<any>(null);
@@ -133,34 +139,71 @@ export default function DriverDashboard() {
     );
   }, [trip?.vehicleNumber, emit, events, toast]);
 
-  // Set up continuous GPS tracking
+  // Set up continuous GPS tracking with optimized real-time updates
   useEffect(() => {
     if (!navigator.geolocation || !trip?.vehicleNumber) return;
 
     console.log('🔄 [CONTINUOUS GPS] Setting up real-time GPS tracking...');
+    setGpsConnectionStatus('connecting');
     
-    // Set up continuous location watching
+    // Set up continuous location watching with optimized settings for real-time tracking
     const watchId = navigator.geolocation.watchPosition(
       (pos) => {
-        const realLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude };
-        console.log('🔄 [CONTINUOUS GPS] Real-time location update:', realLocation);
+        const realLocation = { 
+          lat: pos.coords.latitude, 
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+          timestamp: Date.now()
+        };
         
+        console.log('🔄 [CONTINUOUS GPS] Real-time location update:', {
+          ...realLocation,
+          speed: pos.coords.speed,
+          heading: pos.coords.heading
+        });
+        
+        // Update location and GPS status
         setLocation(realLocation);
         setIsRealGPS(true);
+        setGpsAccuracy(pos.coords.accuracy);
+        setGpsSpeed(pos.coords.speed);
+        setLastGpsUpdate(Date.now());
         
-        // Send real GPS to manager dashboard
+        // Determine GPS connection quality based on accuracy
+        if (pos.coords.accuracy <= 10) {
+          setGpsConnectionStatus('connected');
+        } else if (pos.coords.accuracy <= 50) {
+          setGpsConnectionStatus('weak');
+        } else {
+          setGpsConnectionStatus('weak');
+        }
+        
+        // Send real GPS to manager dashboard with additional metadata
         emit(events.LOCATION_UPDATE, {
           vehicleNumber: trip.vehicleNumber,
-          location: realLocation
+          location: realLocation,
+          accuracy: pos.coords.accuracy,
+          speed: pos.coords.speed || 0,
+          heading: pos.coords.heading || 0,
+          timestamp: Date.now()
         });
       },
       (error) => {
         console.error('❌ [CONTINUOUS GPS] Watch error:', error);
+        setGpsConnectionStatus('lost');
+        
+        // Try to continue tracking even if one update fails
+        toast({
+          title: "GPS Warning",
+          description: "GPS signal weak, trying to reconnect...",
+          variant: "destructive",
+          duration: 3000
+        });
       },
       { 
         enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 5000 // Allow 5 second cache for continuous tracking
+        timeout: 8000, // Reduced timeout for faster updates
+        maximumAge: 2000 // Reduced cache time for more frequent updates (2 seconds)
       }
     );
 
@@ -168,9 +211,28 @@ export default function DriverDashboard() {
       if (watchId) {
         console.log('🛑 [CONTINUOUS GPS] Stopping GPS tracking');
         navigator.geolocation.clearWatch(watchId);
+        setGpsConnectionStatus('connecting');
       }
     };
-  }, [trip?.vehicleNumber, emit, events]);
+  }, [trip?.vehicleNumber, emit, events, toast]);
+
+  // Monitor GPS connection health
+  useEffect(() => {
+    if (!lastGpsUpdate) return;
+
+    const checkGpsHealth = setInterval(() => {
+      const timeSinceLastUpdate = Date.now() - lastGpsUpdate;
+      
+      if (timeSinceLastUpdate > 15000) { // No update for 15 seconds
+        setGpsConnectionStatus('lost');
+        console.warn('⚠️ [GPS MONITOR] No GPS updates for 15 seconds');
+      } else if (timeSinceLastUpdate > 8000) { // No update for 8 seconds
+        setGpsConnectionStatus('weak');
+      }
+    }, 5000); // Check every 5 seconds
+
+    return () => clearInterval(checkGpsHealth);
+  }, [lastGpsUpdate]);
 
   // Record a fixed-length emergency clip and return as blob.
   const recordEmergencyClip = (durationMs: number = 10000): Promise<Blob | null> => {
@@ -580,13 +642,36 @@ export default function DriverDashboard() {
           </div>
           {location && (
             <div className="flex items-center gap-2 w-full md:w-auto">
-              <Badge variant="outline" className="border-slate-500 text-slate-300 font-mono text-xs">
-                <Navigation className="w-3 h-3 mr-1" />
+              <Badge variant="outline" className={`border-slate-500 font-mono text-xs transition-colors ${
+                gpsConnectionStatus === 'connected' ? 'text-green-400 border-green-500' :
+                gpsConnectionStatus === 'weak' ? 'text-yellow-400 border-yellow-500' :
+                gpsConnectionStatus === 'lost' ? 'text-red-400 border-red-500' :
+                'text-slate-300'
+              }`}>
+                <Navigation className={`w-3 h-3 mr-1 ${
+                  gpsConnectionStatus === 'connected' ? 'text-green-400' :
+                  gpsConnectionStatus === 'weak' ? 'text-yellow-400' :
+                  gpsConnectionStatus === 'lost' ? 'text-red-400 animate-pulse' :
+                  'text-slate-400'
+                }`} />
                 <span className="hidden sm:inline">{location.lat.toFixed(4)}, {location.lng.toFixed(4)}</span>
                 <span className="sm:hidden">{location.lat.toFixed(2)}, {location.lng.toFixed(2)}</span>
-                <span className={`ml-2 text-xs ${isRealGPS ? 'text-green-400' : 'text-blue-400'}`}>
-                  {isRealGPS ? 'LIVE' : 'DEMO'}
+                <span className={`ml-2 text-xs ${
+                  gpsConnectionStatus === 'connected' ? 'text-green-400' :
+                  gpsConnectionStatus === 'weak' ? 'text-yellow-400' :
+                  gpsConnectionStatus === 'lost' ? 'text-red-400' :
+                  'text-blue-400'
+                }`}>
+                  {gpsConnectionStatus === 'connected' ? 'LIVE' :
+                   gpsConnectionStatus === 'weak' ? 'WEAK' :
+                   gpsConnectionStatus === 'lost' ? 'LOST' :
+                   'CONN'}
                 </span>
+                {gpsAccuracy && (
+                  <span className="ml-1 text-xs text-slate-500">
+                    ±{Math.round(gpsAccuracy)}m
+                  </span>
+                )}
               </Badge>
               <Button 
                 variant="ghost" 

@@ -330,13 +330,36 @@ export default function ManagerDashboard() {
       // Don't show multiple popup swaps while one decision is pending.
     });
 
-    const unsubscribeLocation = subscribe(events.RECEIVE_LOCATION, (data: { vehicleNumber: string; location: { lat: number; lng: number } }) => {
+    const unsubscribeLocation = subscribe(events.RECEIVE_LOCATION, (data: { 
+      vehicleNumber: string; 
+      location: { lat: number; lng: number; accuracy?: number; timestamp?: number }; 
+      accuracy?: number; 
+      speed?: number; 
+      heading?: number; 
+      timestamp?: number;
+    }) => {
       console.log('🎯 Manager Dashboard received GPS update:', data);
-      // Update vehicle locations in real-time
+      
+      // Update vehicle locations with enhanced data
       setVehicleLocations(prev => ({
         ...prev,
-        [data.vehicleNumber]: data.location
+        [data.vehicleNumber]: {
+          lat: data.location.lat,
+          lng: data.location.lng,
+          accuracy: data.accuracy || data.location.accuracy,
+          speed: data.speed || 0,
+          heading: data.heading || 0,
+          timestamp: data.timestamp || data.location.timestamp || Date.now(),
+          lastUpdate: Date.now()
+        }
       }));
+      
+      // Update vehicle tracking status
+      setVehicleTrackingStatus(prev => ({
+        ...prev,
+        [data.vehicleNumber]: 'active'
+      }));
+      
       refetchEmergencies();
     });
 
@@ -409,8 +432,49 @@ export default function ManagerDashboard() {
     }
   }, [emergencies]); // Only depend on emergencies data, not activeEmergency
 
-  // Map Markers Construction
-  const [vehicleLocations, setVehicleLocations] = useState<Record<string, { lat: number; lng: number }>>({});
+  // Monitor vehicle tracking status
+  useEffect(() => {
+    const monitorVehicles = setInterval(() => {
+      const now = Date.now();
+      
+      setVehicleTrackingStatus(prev => {
+        const updated = { ...prev };
+        
+        Object.keys(vehicleLocations).forEach(vehicleNumber => {
+          const vehicle = vehicleLocations[vehicleNumber];
+          if (vehicle.lastUpdate) {
+            const timeSinceUpdate = now - vehicle.lastUpdate;
+            
+            if (timeSinceUpdate > 30000) { // No update for 30 seconds
+              updated[vehicleNumber] = 'lost';
+            } else if (timeSinceUpdate > 15000) { // No update for 15 seconds
+              updated[vehicleNumber] = 'inactive';
+            } else {
+              updated[vehicleNumber] = 'active';
+            }
+          }
+        });
+        
+        return updated;
+      });
+    }, 10000); // Check every 10 seconds
+
+    return () => clearInterval(monitorVehicles);
+  }, [vehicleLocations]);
+
+  // Map Markers Construction with enhanced GPS data
+  const [vehicleLocations, setVehicleLocations] = useState<Record<string, { 
+    lat: number; 
+    lng: number; 
+    accuracy?: number; 
+    speed?: number; 
+    heading?: number; 
+    timestamp?: number;
+    lastUpdate?: number;
+  }>>({});
+  
+  // Vehicle tracking status
+  const [vehicleTrackingStatus, setVehicleTrackingStatus] = useState<Record<string, 'active' | 'inactive' | 'lost'>>({});
 
   // REMOVED: Vehicle simulation completely - using real GPS only
   // No automatic vehicle movement - vehicles only move when drivers send real GPS coordinates
@@ -453,19 +517,34 @@ export default function ManagerDashboard() {
     ...(vehicles?.map(v => {
       // Use real GPS location from vehicleLocations (sent by driver devices)
       const realLocation = vehicleLocations[v.vehicleNumber];
+      const trackingStatus = vehicleTrackingStatus[v.vehicleNumber] || 'inactive';
       
       // Only show vehicle if we have real GPS data
       if (!realLocation) {
         return null; // Don't show vehicle without real GPS
       }
       
+      // Determine vehicle icon based on tracking status
+      const vehicleIcon = trackingStatus === 'active' ? '🚗' : 
+                         trackingStatus === 'inactive' ? '🟡' : '🔴';
+      
+      const lastUpdateTime = realLocation.lastUpdate ? 
+        new Date(realLocation.lastUpdate).toLocaleTimeString() : 'Unknown';
+      
+      const speedText = realLocation.speed ? 
+        `${Math.round(realLocation.speed * 3.6)} km/h` : '0 km/h'; // Convert m/s to km/h
+      
+      const accuracyText = realLocation.accuracy ? 
+        `±${Math.round(realLocation.accuracy)}m` : 'Unknown';
+      
       return {
         id: v.vehicleNumber,
         lat: realLocation.lat,
         lng: realLocation.lng,
-        title: `🚗 Vehicle: ${v.vehicleNumber}`,
+        title: `${vehicleIcon} Vehicle: ${v.vehicleNumber}`,
         type: "vehicle" as const,
-        details: `Type: ${v.vehicleType} | Real GPS Location`
+        details: `Type: ${v.vehicleType} | Status: ${trackingStatus.toUpperCase()} | Speed: ${speedText} | Accuracy: ${accuracyText} | Last Update: ${lastUpdateTime}`,
+        trackingStatus
       };
     }).filter(Boolean) || []), // Remove null entries
     // Emergencies override vehicle positions
