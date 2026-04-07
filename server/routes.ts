@@ -176,7 +176,9 @@ export async function registerRoutes(
     const defaultMessage = `TEST ALERT (RideWithAlert)
 This is a review/demo notification test.
 No real emergency action is required.
-Time: ${new Date().toISOString()}`;
+Time: ${new Date().toISOString()}
+
+This message is for testing purposes only. Please do not panic.`;
     const message = String(customMessage || defaultMessage);
 
     try {
@@ -1438,7 +1440,9 @@ Time: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: f
 Emergency ID: ${emergencyId}
 Blood Group: ${driver.bloodGroup || 'Unknown'}
 Driver Phone: ${driver.phoneNumber}
-IMMEDIATE POLICE ASSISTANCE REQUIRED!`;
+IMMEDIATE POLIS ASSISTANCE REQUIRED!
+
+This message is for testing purposes only. Please do not panic.`;
 
       const hospitalMessage = `🚨 MEDICAL EMERGENCY
 Driver: ${driver.name}
@@ -1449,13 +1453,15 @@ Emergency ID: ${emergencyId}
 Blood Group: ${driver.bloodGroup || 'Unknown'}
 Medical: ${driver.medicalConditions || 'None'}
 Driver Phone: ${driver.phoneNumber}
-IMMEDIATE MEDICAL ASSISTANCE REQUIRED!`;
+IMMEDIATE MEDICAL ASSISTANCE REQUIRED!
+
+This message is for testing purposes only. Please do not panic.`;
       
       // Print exact SMS content in terminal for verification/demo.
-      console.log(`\n========== POLICE SMS (Emergency ${emergencyId}) ==========\n${policeMessage}\n===========================================================\n`);
+      console.log(`\n========== POLIS SMS (Emergency ${emergencyId}) ==========\n${policeMessage}\n===========================================================\n`);
       console.log(`\n========= HOSPITAL SMS (Emergency ${emergencyId}) =========\n${hospitalMessage}\n===========================================================\n`);
 
-      console.log(`[MANAGER APPROVED 🚨] Sending to Police: ${POLICE_PHONE}`);
+      console.log(`[MANAGER APPROVED 🚨] Sending to Polis: ${POLICE_PHONE}`);
       await sendSMS(POLICE_PHONE, policeMessage);
       
       console.log(`[MANAGER APPROVED 🚨] Sending to Hospital: ${HOSPITAL_PHONE}`);
