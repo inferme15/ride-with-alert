@@ -269,6 +269,37 @@ SMS Service: Fast2SMS API
     global.driverSessions.add(trip.driverNumber);
     console.log(`🚗 Driver ${trip.driverNumber} logged in - Real GPS tracking active`);
 
+    // Send welcome SMS to driver
+    const welcomeMessage = `✅ *LOGIN SUCCESSFUL - RideWithAlert*
+
+Welcome ${trip.driver.name}! 👋
+
+*Active Trip:*
+Vehicle: ${trip.vehicleNumber} (${trip.vehicle.vehicleType})
+Route: ${trip.startLocation} → ${trip.endLocation}
+
+*Dashboard Features:*
+📍 Real-time GPS tracking active
+🚨 Emergency SOS button available
+⛽ Fuel monitoring: ${trip.vehicle.currentFuel}%
+🛡️ Safety alerts enabled
+
+*Safety Reminders:*
+- Keep GPS enabled at all times
+- Press SOS for emergencies only
+- Follow traffic rules
+- Report any vehicle issues immediately
+
+*Emergency Contacts:*
+Police: 100 | Medical: 108 | Fire: 101
+
+Drive safely! 🚗💨`;
+
+    // Send welcome SMS (don't await to avoid blocking login)
+    sendSMS(trip.driver.phoneNumber, welcomeMessage).catch(err => 
+      console.error('Failed to send welcome SMS:', err)
+    );
+
     res.json(trip);
   });
 
@@ -485,11 +516,34 @@ SMS Service: Fast2SMS API
         });
       }
       
-      const smsMessage = `Trip: ${vehicleNumber} - ${driver.name}
-Login: ${temporaryUsername}/${temporaryPassword}
-${req.protocol}://${req.get('host')}/login/driver`;
+      const smsMessage = `🚗 *TRIP ASSIGNED - RideWithAlert*
+
+*Driver:* ${driver.name}
+*Vehicle:* ${vehicleNumber} (${vehicle.vehicleType})
+*Route:* ${startLocationName || 'Start Location'} → ${endLocationName || 'Destination'}
+
+*Login Credentials:*
+Username: ${temporaryUsername}
+Password: ${temporaryPassword}
+Portal: ${req.protocol}://${req.get('host')}/login/driver
+
+*Trip Details:*
+- Vehicle Fuel: ${vehicle.currentFuel}%
+- Safety Score: ${selectedRoute?.safetyMetrics?.overallSafetyScore || 'N/A'}/100
+- Est. Distance: ${selectedRoute?.distance ? (selectedRoute.distance/1000).toFixed(1) + 'km' : 'Calculating...'}
+- Est. Time: ${selectedRoute?.estimatedTime ? Math.round(selectedRoute.estimatedTime/60) + ' mins' : 'Calculating...'}
+
+*Important:*
+- Login immediately to start GPS tracking
+- Press SOS button for emergencies
+- Follow traffic rules and drive safely
+
+*Emergency Contacts:*
+Police: 100 | Medical: 108 | Fire: 101
+
+Safe travels! 🛡️`;
       
-      console.log('📱 Sending SMS notification to driver:', driver.phoneNumber);
+      console.log('📱 Sending detailed SMS notification to driver:', driver.phoneNumber);
       await sendSMS(driver.phoneNumber, smsMessage);
 
       // Emit socket event with route analysis
@@ -835,9 +889,35 @@ ${req.protocol}://${req.get('host')}/login/driver`;
 
       const trip = await storage.cancelTrip(tripId);
       
-      // Send cancellation SMS to driver
-      const whatsappMessage = `*Trip Cancelled*\n\nYour trip assignment has been cancelled.\n\nVehicle: ${fullTrip.vehicleNumber}\nDriver: ${fullTrip.driver.name}\n\nPlease contact management for details.`;
-      await sendSMS(fullTrip.driver.phoneNumber, whatsappMessage);
+      // Send detailed cancellation SMS to driver
+      const cancellationMessage = `🚫 *TRIP CANCELLED - RideWithAlert*
+
+*Driver:* ${fullTrip.driver.name}
+*Vehicle:* ${fullTrip.vehicleNumber}
+*Cancelled At:* ${new Date().toLocaleString('en-IN', { 
+        timeZone: 'Asia/Kolkata',
+        day: '2-digit',
+        month: '2-digit', 
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: true
+      })}
+
+*Reason:* Trip cancelled by management
+
+*Next Steps:*
+- Return vehicle to designated location
+- Contact fleet manager for new assignments
+- Ensure vehicle is properly parked and secured
+
+*Contact Information:*
+Management: ${process.env.MANAGER_PHONE || '9342746662'}
+Emergency: 100 (Police) | 108 (Medical)
+
+Thank you for your service. 🙏`;
+      
+      await sendSMS(fullTrip.driver.phoneNumber, cancellationMessage);
 
       res.json(trip);
     } catch (err) {
