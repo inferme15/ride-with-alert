@@ -1454,7 +1454,7 @@ ${facilitySection || 'No nearby facilities found'}
         const filtered = facilities.filter((f: any) => {
           const facilityType = f.type?.toLowerCase();
           if (type === 'hospitals') return facilityType === 'hospital' || facilityType === 'clinic';
-          if (type === 'polis') return facilityType === 'police';
+          if (type === 'authorities') return facilityType === 'police';
           if (type === 'fire') return facilityType === 'fire_station';
           if (type === 'fuel') return facilityType === 'fuel_station';
           return false;
@@ -1469,11 +1469,11 @@ ${facilitySection || 'No nearby facilities found'}
       };
 
       const hospitalsNearby = formatFacilitiesForSMS(nearbyFacilities || [], 'hospitals');
-      const polisNearby = formatFacilitiesForSMS(nearbyFacilities || [], 'polis');
+      const authoritiesNearby = formatFacilitiesForSMS(nearbyFacilities || [], 'authorities');
       const fireNearby = formatFacilitiesForSMS(nearbyFacilities || [], 'fire');
       const fuelNearby = formatFacilitiesForSMS(nearbyFacilities || [], 'fuel');
 
-      const policeMessage = `*EMERGENCY ALERT TO THE POLIS CONTROL ROOM*
+      const policeMessage = `*EMERGENCY ALERT TO THE AUTHORITIES CONTROL ROOM*
 
 *Driver :* ${driver.name} (${fullEmergency.driverNumber})
 *Vehicle :* ${fullEmergency.vehicleNumber} (${vehicle.vehicleType})
@@ -1498,18 +1498,18 @@ Emergency Contact: ${driver.emergencyContact || 'Not available'} (${driver.emerg
 
 *Nearby Emergency Resources :*
 Hospitals: ${hospitalsNearby}
-Polis: ${polisNearby}
+Authorities: ${authoritiesNearby}
 Fire Stations: ${fireNearby}
 Fuel Stations: ${fuelNearby}
 
 *Emergency Contacts :*
-Polis: 100 | Medical: 108 | Fire: 101
+Authorities: 100 | Medical: 108 | Fire: 101
 Driver Phone: ${driver.phoneNumber}
 
 *GPS Location: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}*
 *TRIP HAS BEEN STOPPED*
 
-*IMMEDIATE POLIS ASSISTANCE REQUIRED !*
+*IMMEDIATE AUTHORITIES ASSISTANCE REQUIRED !*
 
 *This message is for testing purposes only. Please do not panic.*`;
 
@@ -1542,7 +1542,7 @@ Clinics: ${formatFacilitiesForSMS(nearbyFacilities || [], 'hospitals')}
 Pharmacies: ${formatFacilitiesForSMS(nearbyFacilities || [], 'pharmacy')}
 
 *Emergency Contacts :*
-Polis: 100 | Medical: 108 | Fire: 101
+Authorities: 100 | Medical: 108 | Fire: 101
 Driver Phone: ${driver.phoneNumber}
 
 *GPS Location: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}*
@@ -1553,10 +1553,10 @@ Driver Phone: ${driver.phoneNumber}
 *This message is for testing purposes only. Please do not panic.*`;
       
       // Print exact SMS content in terminal for verification/demo.
-      console.log(`\n========== POLIS SMS (Emergency ${emergencyId}) ==========\n${policeMessage}\n===========================================================\n`);
+      console.log(`\n========== AUTHORITIES SMS (Emergency ${emergencyId}) ==========\n${policeMessage}\n===========================================================\n`);
       console.log(`\n========= HOSPITAL SMS (Emergency ${emergencyId}) =========\n${hospitalMessage}\n===========================================================\n`);
 
-      console.log(`[MANAGER APPROVED 🚨] Sending to Polis: ${POLICE_PHONE}`);
+      console.log(`[MANAGER APPROVED 🚨] Sending to Authorities: ${POLICE_PHONE}`);
       await sendSMS(POLICE_PHONE, policeMessage);
       
       console.log(`[MANAGER APPROVED 🚨] Sending to Hospital: ${HOSPITAL_PHONE}`);
