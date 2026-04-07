@@ -432,9 +432,9 @@ async function searchOpenStreetMap(
   const facilities: NearbyFacility[] = [];
   
   try {
-    // OpenStreetMap Overpass API query
+    // OpenStreetMap Overpass API query with reduced timeout
     const overpassQuery = `
-      [out:json][timeout:25];
+      [out:json][timeout:10];
       (
         node["amenity"="hospital"](around:${radius},${latitude},${longitude});
         node["amenity"="clinic"](around:${radius},${latitude},${longitude});
@@ -447,13 +447,18 @@ async function searchOpenStreetMap(
       out center;
     `;
 
+    // Add timeout and abort controller
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
     const response = await fetch('https://overpass-api.de/api/interpreter', {
       method: 'POST',
-      body: overpassQuery,
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: `data=${encodeURIComponent(overpassQuery)}`,
+      signal: controller.signal
     });
+
+    clearTimeout(timeoutId);
 
     if (response.ok) {
       const data = await response.json();

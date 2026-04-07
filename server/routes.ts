@@ -1675,9 +1675,41 @@ Driver Phone: ${driver.phoneNumber}
     }
   });
 
-  app.get(api.emergency.list.path, async (req, res) => {
-    const emergencies = await storage.getAllEmergencies();
-    res.json(emergencies);
+  // Health check endpoint
+  app.get("/api/health", (req, res) => {
+    res.json({ 
+      status: "ok", 
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime()
+    });
+  });
+
+  // Quick emergency list endpoint with timeout handling
+  app.get("/api/emergencies", async (req, res) => {
+    try {
+      console.log('[EMERGENCIES] Fetching all emergencies...');
+      const startTime = Date.now();
+      
+      // Add timeout to prevent hanging
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('Database query timeout')), 10000);
+      });
+      
+      const emergenciesPromise = storage.getAllEmergencies();
+      
+      const emergencies = await Promise.race([emergenciesPromise, timeoutPromise]);
+      
+      const duration = Date.now() - startTime;
+      console.log(`[EMERGENCIES] Fetched ${emergencies.length} emergencies in ${duration}ms`);
+      
+      res.json(emergencies);
+    } catch (error) {
+      console.error('[EMERGENCIES] Error:', error);
+      res.status(500).json({ 
+        error: 'Failed to fetch emergencies',
+        message: error instanceof Error ? error.message : String(error)
+      });
+    }
   });
 
   // === ROUTE DISCOVERY API ===
