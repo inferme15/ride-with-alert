@@ -19,18 +19,40 @@ export function useTriggerEmergency() {
   
   return useMutation({
     mutationFn: async (formData: FormData) => {
+      // ENHANCED DEBUG: Log FormData contents before sending
+      console.log('🚀 [EMERGENCY HOOK] Sending emergency request...');
+      console.log('📋 [EMERGENCY HOOK] FormData contents:');
+      for (let [key, value] of formData.entries()) {
+        if (value instanceof File) {
+          console.log(`  ${key}: File(${value.name}, ${value.size} bytes, ${value.type})`);
+        } else {
+          console.log(`  ${key}: ${value}`);
+        }
+      }
+      
       // Note: Trigger uses multipart/form-data for potential video file
       const res = await fetch(api.emergency.trigger.path, {
         method: api.emergency.trigger.method,
         body: formData, // FormData automatically sets correct Content-Type boundary
         credentials: "include",
       });
+      
+      console.log('📡 [EMERGENCY HOOK] Response received:', {
+        status: res.status,
+        statusText: res.statusText,
+        ok: res.ok,
+        headers: Object.fromEntries(res.headers.entries())
+      });
+      
       if (!res.ok) {
         const text = await res.text();
+        console.error('❌ [EMERGENCY HOOK] Request failed:', text);
         throw new Error(text || "Failed to trigger emergency");
       }
       // Trigger endpoint may return 201 (new emergency) or 200 (video-only update).
-      return await res.json();
+      const responseData = await res.json();
+      console.log('✅ [EMERGENCY HOOK] Success response:', responseData);
+      return responseData;
     },
     onSuccess: () => {
       toast({ 

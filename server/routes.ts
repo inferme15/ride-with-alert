@@ -29,7 +29,29 @@ const storageConfig = multer.diskStorage({
     cb(null, `emergency-${Date.now()}-${file.originalname}`);
   },
 });
-const upload = multer({ storage: storageConfig });
+const upload = multer({ 
+  storage: storageConfig,
+  limits: {
+    fileSize: 50 * 1024 * 1024, // 50MB limit for emergency videos
+    fieldSize: 10 * 1024 * 1024  // 10MB for other fields
+  },
+  fileFilter: (req, file, cb) => {
+    console.log('📁 [MULTER] File filter check:', {
+      fieldname: file.fieldname,
+      originalname: file.originalname,
+      mimetype: file.mimetype,
+      size: file.size
+    });
+    
+    // Accept video files
+    if (file.mimetype.startsWith('video/')) {
+      cb(null, true);
+    } else {
+      console.warn('⚠️ [MULTER] Rejected non-video file:', file.mimetype);
+      cb(new Error('Only video files are allowed'), false);
+    }
+  }
+});
 
 export async function registerRoutes(
   httpServer: Server,
@@ -1021,8 +1043,21 @@ ${req.protocol}://${req.get('host')}/login/driver`;
         originalname: req.file.originalname,
         size: req.file.size,
         mimetype: req.file.mimetype,
-        path: req.file.path
+        path: req.file.path,
+        destination: req.file.destination
       } : 'No file received');
+      
+      // ENHANCED DEBUG: Log all form data
+      console.log(`[EMERGENCY DEBUG] All form data:`, {
+        driverNumber: req.body.driverNumber,
+        vehicleNumber: req.body.vehicleNumber,
+        latitude: req.body.latitude,
+        longitude: req.body.longitude,
+        location: req.body.location,
+        emergencyType: req.body.emergencyType,
+        description: req.body.description,
+        videoOnly: req.body.videoOnly
+      });
       
       // Check if there's already an active emergency for this driver/vehicle (within last 2 minutes)
       const existingActive = await storage.getActiveEmergencyForDriverVehicle(driverNumber, vehicleNumber);
@@ -1105,6 +1140,14 @@ ${req.protocol}://${req.get('host')}/login/driver`;
 
       const videoUrl = req.file ? `/uploads/${req.file.filename}` : undefined;
 
+      // ENHANCED DEBUG: Video URL processing
+      console.log(`[EMERGENCY DEBUG] Video URL processing:`, {
+        hasFile: !!req.file,
+        videoUrl,
+        fileExists: req.file ? require('fs').existsSync(req.file.path) : false,
+        filePath: req.file?.path
+      });
+
       // Create emergency record
       const emergency = await storage.createEmergency({
         driverNumber,
@@ -1150,7 +1193,8 @@ ${req.protocol}://${req.get('host')}/login/driver`;
         vehicleNumber: emergencyData.vehicleNumber,
         videoUrl: emergencyData.videoUrl,
         hasVideo: !!emergencyData.videoUrl,
-        status: emergencyData.status
+        status: emergencyData.status,
+        fullVideoPath: emergencyData.videoUrl ? `${req.protocol}://${req.get('host')}${emergencyData.videoUrl}` : null
       });
 
       // Send immediate response to driver

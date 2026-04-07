@@ -774,12 +774,41 @@ export default function DriverDashboard() {
             type: videoBlob.type,
             filename: "emergency-capture.webm"
           });
+          
+          // ENHANCED DEBUG: Test video blob validity
+          const videoUrl = URL.createObjectURL(videoBlob);
+          console.log('🎥 [DEBUG] Video blob URL created for testing:', videoUrl);
+          
+          // Test if blob can be played
+          const testVideo = document.createElement('video');
+          testVideo.src = videoUrl;
+          testVideo.onloadeddata = () => {
+            console.log('✅ [DEBUG] Video blob is valid and playable');
+            console.log('📊 [DEBUG] Video dimensions:', testVideo.videoWidth, 'x', testVideo.videoHeight);
+            console.log('⏱️ [DEBUG] Video duration:', testVideo.duration, 'seconds');
+            URL.revokeObjectURL(videoUrl);
+          };
+          testVideo.onerror = (e) => {
+            console.error('❌ [DEBUG] Video blob is corrupted or invalid:', e);
+            URL.revokeObjectURL(videoUrl);
+          };
         } else {
           console.warn('⚠️ [EMERGENCY] No video recorded, sending alert without video');
           console.log('🔍 [DEBUG] Video blob details:', {
             videoBlob,
             size: videoBlob?.size,
-            type: videoBlob?.type
+            type: videoBlob?.type,
+            isNull: videoBlob === null,
+            isUndefined: videoBlob === undefined
+          });
+          
+          // ENHANCED DEBUG: Check camera state
+          console.log('📷 [DEBUG] Camera state during emergency:', {
+            cameraReady,
+            cameraError,
+            webcamRef: !!webcamRef.current,
+            webcamStream: webcamRef.current?.stream?.active,
+            mediaRecorderRef: !!mediaRecorderRef.current
           });
         }
 
@@ -794,6 +823,10 @@ export default function DriverDashboard() {
             console.log(`  ${key}: ${value}`);
           }
         }
+        
+        // ENHANCED DEBUG: Verify FormData was sent correctly
+        console.log('🌐 [DEBUG] Emergency trigger request completed');
+        console.log('📡 [DEBUG] Request should have been sent to:', '/api/emergency/trigger');
         
         setStatusMessage("🚨 EMERGENCY SENT TO MANAGER - Awaiting decision");
         toast({
