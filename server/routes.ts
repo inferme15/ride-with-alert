@@ -269,37 +269,6 @@ SMS Service: Fast2SMS API
     global.driverSessions.add(trip.driverNumber);
     console.log(`🚗 Driver ${trip.driverNumber} logged in - Real GPS tracking active`);
 
-    // Send welcome SMS to driver
-    const welcomeMessage = `✅ *LOGIN SUCCESSFUL - RideWithAlert*
-
-Welcome ${trip.driver.name}! 👋
-
-*Active Trip:*
-Vehicle: ${trip.vehicleNumber} (${trip.vehicle.vehicleType})
-Route: ${trip.startLocation} → ${trip.endLocation}
-
-*Dashboard Features:*
-📍 Real-time GPS tracking active
-🚨 Emergency SOS button available
-⛽ Fuel monitoring: ${trip.vehicle.currentFuel}%
-🛡️ Safety alerts enabled
-
-*Safety Reminders:*
-- Keep GPS enabled at all times
-- Press SOS for emergencies only
-- Follow traffic rules
-- Report any vehicle issues immediately
-
-*Emergency Contacts:*
-Police: 100 | Medical: 108 | Fire: 101
-
-Drive safely! 🚗💨`;
-
-    // Send welcome SMS (don't await to avoid blocking login)
-    sendSMS(trip.driver.phoneNumber, welcomeMessage).catch(err => 
-      console.error('Failed to send welcome SMS:', err)
-    );
-
     res.json(trip);
   });
 
@@ -539,7 +508,7 @@ Portal: ${req.protocol}://${req.get('host')}/login/driver
 - Follow traffic rules and drive safely
 
 *Emergency Contacts:*
-Police: 100 | Medical: 108 | Fire: 101
+Authorities: 100 | Medical: 108 | Fire: 101
 
 Safe travels! 🛡️`;
       
@@ -913,7 +882,7 @@ Safe travels! 🛡️`;
 
 *Contact Information:*
 Management: ${process.env.MANAGER_PHONE || '9342746662'}
-Emergency: 100 (Police) | 108 (Medical)
+Emergency: 100 (Authorities) | 108 (Medical)
 
 Thank you for your service. 🙏`;
       
@@ -1566,7 +1535,7 @@ Emergency Contact: ${driver.emergencyContact || 'Not available'} (${driver.emerg
 ${facilitySection || 'No nearby facilities found'}
 
 *Emergency Contacts:*
-Police: 100 | Medical: 108 | Fire: 101
+Authorities: 100 | Medical: 108 | Fire: 101
 Driver Phone: ${driver.phoneNumber}
 
 *GPS Location: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}*
