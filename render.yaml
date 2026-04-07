@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: ridewithAlert
+    env: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        fromService:
+          type: web
+          name: ridewithAlert
+          property: port
+      - key: DATABASE_URL
+        fromDatabase:
+          name: ridewithAlert-db
+          property: connectionString
+      - key: FAST2SMS_API_KEY
+        sync: false
+      - key: POLICE_PHONE
+        value: "100"
+      - key: HOSPITAL_PHONE
+        value: "108"
+
+databases:
+  - name: ridewithAlert-db
+    plan: free

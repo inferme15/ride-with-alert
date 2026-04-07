@@ -20,6 +20,15 @@ declare module "http" {
   }
 }
 
+// Add basic health check before any other middleware
+app.get('/health', (req, res) => {
+  res.status(200).json({ 
+    status: 'ok', 
+    timestamp: new Date().toISOString(),
+    env: process.env.NODE_ENV || 'development'
+  });
+});
+
 app.use(
   express.json({
     limit: '50mb', // Increase limit to handle large route geometry data
