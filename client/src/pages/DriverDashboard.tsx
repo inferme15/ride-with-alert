@@ -8,7 +8,7 @@ import type { EnhancedTrip } from "@shared/schema";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { MapPin, Navigation, Video, AlertTriangle, LogOut, Fuel, Wrench, CheckCircle, Menu, X } from "lucide-react";
+import { MapPin, Navigation, AlertTriangle, LogOut, CheckCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import ReactWebcam from "react-webcam";
 import { Map } from "@/components/Map";
@@ -16,14 +16,9 @@ import { FixedVehicleTrackingMap } from "@/components/FixedVehicleTrackingMap";
 
 export default function DriverDashboard() {
   const { logout } = useAuth();
-  const { socket, emit, subscribe, events } = useSocketHook();
+  const { emit, subscribe, events } = useSocketHook();
   const { toast } = useToast();
   const { mutateAsync: triggerEmergency, isPending: isTriggering } = useTriggerEmergency();
-  const isMobile = useIsMobile();
-
-  // Mobile-specific state
-  const [showSidebar, setShowSidebar] = useState(false);
-  const [activeTab, setActiveTab] = useState<'map' | 'camera' | 'info'>('map');
 
   // State for GPS status
   const [location, setLocation] = useState<{lat: number, lng: number, accuracy?: number, timestamp?: number} | null>(null);
@@ -39,7 +34,6 @@ export default function DriverDashboard() {
   
   // Enhanced GPS tracking states
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null);
-  const [gpsSpeed, setGpsSpeed] = useState<number | null>(null);
   const [lastGpsUpdate, setLastGpsUpdate] = useState<number | null>(null);
   const [gpsConnectionStatus, setGpsConnectionStatus] = useState<'connecting' | 'connected' | 'weak' | 'lost'>('connecting');
   
@@ -50,6 +44,8 @@ export default function DriverDashboard() {
   // Refs
   const webcamRef = useRef<ReactWebcam>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const [cameraReady, setCameraReady] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
 
   // Fetch current trip info with faster loading
   const { data: tripData, isLoading: tripLoading } = useCurrentTrip();
@@ -166,7 +162,6 @@ export default function DriverDashboard() {
         setLocation(realLocation);
         setIsRealGPS(true);
         setGpsAccuracy(pos.coords.accuracy);
-        setGpsSpeed(pos.coords.speed);
         setLastGpsUpdate(Date.now());
         
         // Determine GPS connection quality based on accuracy
@@ -237,42 +232,152 @@ export default function DriverDashboard() {
   // Record a fixed-length emergency clip and return as blob.
   const recordEmergencyClip = (durationMs: number = 10000): Promise<Blob | null> => {
     return new Promise((resolve) => {
-      const stream = webcamRef.current?.stream;
-      if (!stream) {
+      console.log('🎥 [VIDEO] Starting emergency video recording...');
+      
+      // Check if webcam is ready and has stream
+      const webcam = webcamRef.current;
+      if (!webcam) {
+        console.error('❌ [VIDEO] Webcam ref not available');
+        setCameraError('Camera not initialized');
         resolve(null);
         return;
       }
 
-      const chunks: Blob[] = [];
-      const options: MediaRecorderOptions = {
-        mimeType: "video/webm;codecs=vp8,opus"
-      };
-
-      if (!MediaRecorder.isTypeSupported(options.mimeType!)) {
-        options.mimeType = "video/webm";
+      // Get the stream from webcam
+      let stream = webcam.stream;
+      
+      if (!stream || !stream.active) {
+        console.error('❌ [VIDEO] Camera stream not available or inactive');
+        setCameraError('Camera stream not ready');
+        
+        // Try to get stream manually as fallback
+        navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: 'user'
+          }, 
+          audio: true 
+        })
+          .then(newStream => {
+            console.log('✅ [VIDEO] Got fallback camera stream');
+            setCameraError(null);
+            startRecording(newStream, durationMs, resolve);
+          })
+          .catch(err => {
+            console.error('❌ [VIDEO] Failed to get fallback camera stream:', err);
+            setCameraError('Camera access failed');
+            resolve(null);
+          });
+        return;
       }
 
-      try {
-        const recorder = new MediaRecorder(stream, options);
-        mediaRecorderRef.current = recorder;
-
-        recorder.addEventListener("dataavailable", ({ data }: BlobEvent) => {
-          if (data.size > 0) chunks.push(data);
-        });
-
-        recorder.addEventListener("stop", () => {
-          resolve(chunks.length ? new Blob(chunks, { type: "video/webm" }) : null);
-        });
-
-        recorder.start(1000);
-        setTimeout(() => {
-          if (recorder.state !== "inactive") recorder.stop();
-        }, durationMs);
-      } catch (error) {
-        console.error("Failed to record emergency clip:", error);
+      // Validate stream tracks
+      const videoTracks = stream.getVideoTracks();
+      const audioTracks = stream.getAudioTracks();
+      
+      if (videoTracks.length === 0) {
+        console.error('❌ [VIDEO] No video tracks available');
+        setCameraError('No video source');
         resolve(null);
+        return;
       }
+
+      if (videoTracks[0].readyState !== 'live') {
+        console.error('❌ [VIDEO] Video track not live:', videoTracks[0].readyState);
+        setCameraError('Video source not ready');
+        resolve(null);
+        return;
+      }
+
+      console.log('✅ [VIDEO] Camera stream validated, starting recording');
+      setCameraError(null);
+      startRecording(stream, durationMs, resolve);
     });
+  };
+
+  const startRecording = (stream: MediaStream, durationMs: number, resolve: (blob: Blob | null) => void) => {
+    console.log('🎬 [VIDEO] Initializing MediaRecorder...');
+    const chunks: Blob[] = [];
+    
+    // Enhanced codec support detection
+    const supportedTypes = [
+      "video/webm;codecs=vp9,opus",
+      "video/webm;codecs=vp8,opus", 
+      "video/webm;codecs=h264,opus",
+      "video/webm",
+      "video/mp4;codecs=h264,aac",
+      "video/mp4"
+    ];
+    
+    let selectedType = "video/webm"; // fallback
+    for (const type of supportedTypes) {
+      if (MediaRecorder.isTypeSupported(type)) {
+        selectedType = type;
+        console.log('✅ [VIDEO] Using codec:', type);
+        break;
+      }
+    }
+
+    const options: MediaRecorderOptions = {
+      mimeType: selectedType,
+      videoBitsPerSecond: 2500000, // 2.5 Mbps for good quality
+      audioBitsPerSecond: 128000   // 128 kbps for audio
+    };
+
+    try {
+      const recorder = new MediaRecorder(stream, options);
+      mediaRecorderRef.current = recorder;
+
+      recorder.addEventListener("dataavailable", ({ data }: BlobEvent) => {
+        if (data.size > 0) {
+          console.log('📦 [VIDEO] Video chunk received:', data.size, 'bytes');
+          chunks.push(data);
+        }
+      });
+
+      recorder.addEventListener("stop", () => {
+        console.log('🛑 [VIDEO] Recording stopped, total chunks:', chunks.length);
+        const blob = chunks.length ? new Blob(chunks, { type: selectedType }) : null;
+        if (blob) {
+          console.log('✅ [VIDEO] Final video blob created:', blob.size, 'bytes');
+        } else {
+          console.error('❌ [VIDEO] No video data recorded');
+        }
+        resolve(blob);
+      });
+
+      recorder.addEventListener("error", (event) => {
+        console.error('❌ [VIDEO] MediaRecorder error:', event);
+        setCameraError('Recording failed');
+        resolve(null);
+      });
+
+      recorder.addEventListener("start", () => {
+        console.log('▶️ [VIDEO] Recording started successfully');
+        setCameraError(null);
+      });
+
+      // Start recording with smaller time slices for better reliability
+      recorder.start(500); // 500ms chunks for smoother recording
+      console.log('🎥 [VIDEO] Recording started for', durationMs, 'ms');
+      
+      // Stop recording after specified duration
+      setTimeout(() => {
+        if (recorder.state === "recording") {
+          console.log('⏰ [VIDEO] Stopping recorder after', durationMs, 'ms');
+          recorder.stop();
+        } else {
+          console.warn('⚠️ [VIDEO] Recorder not in recording state:', recorder.state);
+          resolve(null);
+        }
+      }, durationMs);
+      
+    } catch (error) {
+      console.error('❌ [VIDEO] Failed to create MediaRecorder:', error);
+      setCameraError('Recording initialization failed');
+      resolve(null);
+    }
   };
 
   // Listen for simulated position updates from manager
@@ -391,21 +496,67 @@ export default function DriverDashboard() {
     };
   }, [subscribe, events, trip?.driverNumber, trip?.vehicleNumber, trip?.tripId, toast, logout]);
 
-  // Request camera permissions early but don't block loading
+  // Initialize camera early and validate stream
   useEffect(() => {
-    // Don't wait for trip data to request camera permissions
-    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-      // Request permissions in background, don't block UI
-      navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-        .then(() => {
-          console.log("Camera and microphone access granted");
-        })
-        .catch((err) => {
-          console.error("Camera access error:", err);
-          // Don't show error toast immediately, only when needed
-        });
+    console.log('📷 [CAMERA] Initializing camera for emergency recording...');
+    
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      console.error('❌ [CAMERA] MediaDevices not supported');
+      setCameraError('Camera not supported');
+      return;
     }
-  }, []); // Remove trip dependency for faster loading
+
+    // Request camera permissions and validate stream
+    const initializeCamera = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { 
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            facingMode: 'user'
+          }, 
+          audio: true 
+        });
+        
+        console.log('✅ [CAMERA] Camera stream obtained successfully');
+        console.log('📊 [CAMERA] Video tracks:', stream.getVideoTracks().length);
+        console.log('🎵 [CAMERA] Audio tracks:', stream.getAudioTracks().length);
+        
+        // Validate tracks
+        const videoTracks = stream.getVideoTracks();
+        if (videoTracks.length > 0 && videoTracks[0].readyState === 'live') {
+          setCameraReady(true);
+          setCameraError(null);
+          console.log('✅ [CAMERA] Camera ready for emergency recording');
+        } else {
+          setCameraError('Video track not ready');
+          console.error('❌ [CAMERA] Video track not live');
+        }
+        
+        // Don't stop the stream - let ReactWebcam manage it
+        
+      } catch (error: any) {
+        console.error('❌ [CAMERA] Failed to initialize camera:', error);
+        
+        let errorMessage = "Camera initialization failed";
+        if (error.name === 'NotAllowedError') {
+          errorMessage = "Camera permission denied";
+        } else if (error.name === 'NotFoundError') {
+          errorMessage = "No camera found";
+        } else if (error.name === 'NotReadableError') {
+          errorMessage = "Camera in use by another app";
+        }
+        
+        setCameraError(errorMessage);
+        setCameraReady(false);
+      }
+    };
+
+    // Initialize camera after a short delay to ensure component is mounted
+    const timer = setTimeout(initializeCamera, 1000);
+    
+    return () => clearTimeout(timer);
+  }, []); // Run once on mount
 
   // Fetch real-time analytics every 30 seconds
   useEffect(() => {
@@ -470,40 +621,53 @@ export default function DriverDashboard() {
       return;
     }
     
+    // Check camera readiness before proceeding
+    if (!cameraReady) {
+      toast({ 
+        title: "Camera not ready", 
+        description: cameraError || "Please wait for camera to initialize.", 
+        variant: "destructive" 
+      });
+      return;
+    }
+    
     // Prevent multiple rapid clicks
     if (isProcessingEmergency || isEmergencyActive) {
       toast({ title: "Emergency in progress", description: "Please wait for current emergency to process.", variant: "destructive" });
       return;
     }
 
-    console.log('🚨 Emergency button clicked - sending IMMEDIATE alert to manager');
+    console.log('🚨 Emergency button clicked - starting IMMEDIATE video recording');
     
-    // Start timed emergency workflow:
-    // 0-10s: capture video + nearby facilities
-    // 11s: send alert payload to manager
+    // Start emergency workflow with immediate video recording
     setIsProcessingEmergency(true);
     setIsEmergencyActive(true);
-    setStatusMessage("🚨 Capturing 10s emergency evidence...");
+    setStatusMessage("🚨 Recording emergency video...");
 
     const clickedAt = Date.now();
-    const runTimedFlow = async () => {
+    const runEmergencyFlow = async () => {
       try {
-        // Collect nearby facilities during evidence capture window.
+        // Start video recording immediately
+        console.log('🎥 [EMERGENCY] Starting immediate video recording...');
+        const videoPromise = recordEmergencyClip(10000);
+        
+        // Collect nearby facilities in parallel
         const facilitiesPromise = fetch(
           `/api/emergency/nearby-facilities?latitude=${activeLocation.lat}&longitude=${activeLocation.lng}`
         )
           .then(async (r) => (r.ok ? r.json() : []))
           .catch(() => []);
 
-        const videoBlob = await recordEmergencyClip(10000);
-        const facilities = await facilitiesPromise;
+        // Wait for both video and facilities
+        const [videoBlob, facilities] = await Promise.all([videoPromise, facilitiesPromise]);
+        
         if (Array.isArray(facilities)) setDriverNearbyFacilities(facilities);
 
-        // Wait until 11th second to notify manager.
+        // Ensure minimum 10 seconds have passed for complete recording
         const elapsed = Date.now() - clickedAt;
-        const waitMs = Math.max(0, 11000 - elapsed);
+        const waitMs = Math.max(0, 10500 - elapsed); // 10.5 seconds to ensure recording completion
         if (waitMs > 0) {
-          setStatusMessage("🚨 Preparing alert for manager review...");
+          setStatusMessage("🚨 Finalizing emergency data...");
           await new Promise((resolve) => setTimeout(resolve, waitMs));
         }
 
@@ -515,21 +679,25 @@ export default function DriverDashboard() {
         formData.append('location', JSON.stringify({ latitude: activeLocation.lat, longitude: activeLocation.lng }));
         formData.append('emergencyType', 'SOS_BUTTON');
         formData.append('description', 'Driver pressed SOS button - Manager review required');
-        if (videoBlob) {
+        
+        if (videoBlob && videoBlob.size > 0) {
           formData.append("video", videoBlob, "emergency-capture.webm");
+          console.log('✅ [EMERGENCY] Video attached to alert:', videoBlob.size, 'bytes');
+        } else {
+          console.warn('⚠️ [EMERGENCY] No video recorded, sending alert without video');
         }
 
         await triggerEmergency(formData);
 
-        console.log('✅ Timed emergency alert sent to manager');
+        console.log('✅ Emergency alert sent to manager with video');
         setStatusMessage("🚨 EMERGENCY SENT TO MANAGER - Awaiting decision");
         toast({
           title: "🚨 Emergency Alert Sent!",
-          description: "Video and location shared with manager for review.",
+          description: videoBlob ? "Video and location shared with manager." : "Location shared with manager (video failed).",
           duration: 4000
         });
       } catch (error: any) {
-        console.error('❌ Timed emergency alert failed:', error);
+        console.error('❌ Emergency alert failed:', error);
         setIsEmergencyActive(false);
         setIsProcessingEmergency(false);
         setStatusMessage("Monitoring Active");
@@ -541,7 +709,7 @@ export default function DriverDashboard() {
       }
     };
 
-    runTimedFlow();
+    runEmergencyFlow();
   };
 
   // Manual GPS refresh function
@@ -915,7 +1083,7 @@ export default function DriverDashboard() {
 
           {/* Center Column - Camera & Map */}
           <div className="lg:col-span-6 space-y-3 md:space-y-4">
-            {/* Camera Preview - Smaller on mobile */}
+            {/* Camera Preview - Enhanced with status indicators */}
             <div className="relative rounded-xl overflow-hidden bg-black h-[200px] md:h-[300px] border border-slate-700 shadow-2xl">
               <ReactWebcam
                 audio={true}
@@ -923,10 +1091,34 @@ export default function DriverDashboard() {
                 screenshotFormat="image/jpeg"
                 className="w-full h-full object-cover"
                 muted={true}
+                videoConstraints={{
+                  width: { ideal: 1280 },
+                  height: { ideal: 720 },
+                  facingMode: 'user'
+                }}
+                onUserMedia={() => {
+                  console.log('✅ [CAMERA] ReactWebcam stream ready');
+                  setCameraReady(true);
+                  setCameraError(null);
+                }}
+                onUserMediaError={(error) => {
+                  console.error('❌ [CAMERA] ReactWebcam error:', error);
+                  setCameraReady(false);
+                  setCameraError('Camera failed to start');
+                }}
               />
               <div className="absolute top-2 left-2 md:top-3 md:left-3 bg-black/60 backdrop-blur px-2 py-1 rounded text-xs flex items-center gap-2">
-                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" /> REC READY
+                <div className={`w-2 h-2 rounded-full ${
+                  cameraReady ? 'bg-green-500 animate-pulse' : 
+                  cameraError ? 'bg-red-500' : 'bg-yellow-500 animate-pulse'
+                }`} />
+                {cameraReady ? 'REC READY' : cameraError ? 'CAM ERROR' : 'LOADING...'}
               </div>
+              {cameraError && (
+                <div className="absolute bottom-2 left-2 right-2 bg-red-900/80 backdrop-blur px-2 py-1 rounded text-xs text-red-200">
+                  {cameraError}
+                </div>
+              )}
             </div>
 
             {/* Enhanced Map with Facilities */}

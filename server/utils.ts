@@ -110,26 +110,40 @@ export async function sendSMS(phoneNumber: string, message: string): Promise<{ s
 
   const formattedNumber = formatPhoneNumber(phoneNumber);
 
+  // Truncate message if too long (SMS limit is 160 chars, but we'll use 150 to be safe)
+  const truncatedMessage = message.length > 150 ? message.substring(0, 147) + "..." : message;
+
   try {
     // Fast2SMS API endpoint
     const url = `https://www.fast2sms.com/dev/bulkV2`;
+    
+    const requestBody = {
+      route: "q",
+      message: truncatedMessage,
+      numbers: formattedNumber,
+      flash: "0"
+    };
+
+    console.log(`[SMS DEBUG] Sending to: ${formattedNumber}`);
+    console.log(`[SMS DEBUG] Message length: ${truncatedMessage.length}`);
+    console.log(`[SMS DEBUG] Request body:`, JSON.stringify(requestBody, null, 2));
     
     const response = await fetch(url, {
       method: "POST",
       headers: {
         "authorization": FAST2SMS_API_KEY,
-        "Content-Type": "application/json",
+        "accept": "*/*",
+        "cache-control": "no-cache",
+        "content-type": "application/json",
       },
-      body: JSON.stringify({
-        route: "q",
-        message: message,
-        language: "english",
-        flash: 0,
-        numbers: formattedNumber,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     const result = await response.json();
+
+    // Debug: Log the full response
+    console.log(`[SMS DEBUG] Response Status: ${response.status}`);
+    console.log(`[SMS DEBUG] Response Body:`, JSON.stringify(result, null, 2));
 
     if (response.ok && result.return === true) {
       console.log(`[SMS SENT ✅] To: ${formattedNumber}`);
@@ -140,6 +154,7 @@ export async function sendSMS(phoneNumber: string, message: string): Promise<{ s
       };
     } else {
       console.log(`[SMS FAILED ❌] ${result.message || "Unknown error"}`);
+      console.log(`[SMS FAILED ❌] Full error:`, result);
       console.log(`[SMS FALLBACK] Using simulation mode`);
       return simulateSMSFallback(phoneNumber, message);
     }

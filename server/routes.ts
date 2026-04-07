@@ -1429,17 +1429,27 @@ ${facilitySection || 'No nearby facilities found'}
 🛑 *TRIP HAS BEEN STOPPED*`;
 
       // 5. SEND SMS TO POLICE AND HOSPITAL using Fast2SMS
-      const policeMessage = `🚨 *EMERGENCY ALERT TO THE POLICE CONTROL ROOM* 🚨
+      // Create SHORT messages for SMS (160 char limit)
+      const policeMessage = `🚨 EMERGENCY ALERT
+Driver: ${driver.name}
+Vehicle: ${fullEmergency.vehicleNumber}
+Location: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}
+Time: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })}
+Emergency ID: ${emergencyId}
+Blood Group: ${driver.bloodGroup || 'Unknown'}
+Driver Phone: ${driver.phoneNumber}
+IMMEDIATE POLICE ASSISTANCE REQUIRED!`;
 
-${commonMessageBody}
-
-⚠️ *IMMEDIATE POLICE ASSISTANCE REQUIRED!*`;
-
-      const hospitalMessage = `🚨 *EMERGENCY ALERT TO THE HOSPITAL CONTROL ROOM* 🚨
-
-${commonMessageBody}
-
-⚠️ *IMMEDIATE MEDICAL ASSISTANCE REQUIRED!*`;
+      const hospitalMessage = `🚨 MEDICAL EMERGENCY
+Driver: ${driver.name}
+Vehicle: ${fullEmergency.vehicleNumber}
+Location: ${latitude.toFixed(4)}, ${longitude.toFixed(4)}
+Time: ${new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', hour12: false })}
+Emergency ID: ${emergencyId}
+Blood Group: ${driver.bloodGroup || 'Unknown'}
+Medical: ${driver.medicalConditions || 'None'}
+Driver Phone: ${driver.phoneNumber}
+IMMEDIATE MEDICAL ASSISTANCE REQUIRED!`;
       
       // Print exact SMS content in terminal for verification/demo.
       console.log(`\n========== POLICE SMS (Emergency ${emergencyId}) ==========\n${policeMessage}\n===========================================================\n`);
