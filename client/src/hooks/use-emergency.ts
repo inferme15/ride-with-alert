@@ -17,8 +17,8 @@ export function useEmergencies() {
       console.log('✅ [EMERGENCY HOOK] Emergencies loaded:', data.length);
       return data;
     },
-    refetchInterval: 30000, // Reduced from 5s to 30s - we have real-time socket updates
-    staleTime: 10000, // Cache for 10 seconds
+    refetchInterval: 60000, // Reduced to 60s - we have real-time socket updates for emergencies
+    staleTime: 30000, // Cache for 30 seconds
     refetchOnWindowFocus: false, // Don't refetch when window gains focus
   });
 }

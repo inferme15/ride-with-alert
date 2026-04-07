@@ -278,8 +278,8 @@ export function useCurrentTrip() {
       return api.trips.getCurrent.responses[200].parse(await res.json());
     },
     enabled: !!localStorage.getItem("trip"),
-    staleTime: 10 * 1000, // Keep trip status reasonably fresh
-    refetchInterval: 5000, // Refresh every 5s for emergency/trip sync
+    staleTime: 20 * 1000, // Keep trip status reasonably fresh
+    refetchInterval: 30000, // Reduced from 5s to 30s - we have real-time socket updates
     refetchOnWindowFocus: true,
     retry: 1,
   });

@@ -489,7 +489,7 @@ SMS Service: Fast2SMS API
 
 *Driver:* ${driver.name}
 *Vehicle:* ${vehicleNumber} (${vehicle.vehicleType})
-*Route:* ${startLocationName || 'Start Location'} → ${endLocationName || 'Destination'}
+*Route:* ${startLocation || 'Start Location'} → ${endLocation || 'Destination'}
 
 *Login Credentials:*
 Username: ${temporaryUsername}

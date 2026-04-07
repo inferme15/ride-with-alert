@@ -395,7 +395,7 @@ export default function ManagerDashboard() {
       unsubscribeStopAlarm?.();
       unsubscribeTripCompleted?.();
     };
-  }, [subscribe, events, refetchEmergencies, refetchTrips]);
+  }, [subscribe, events, refetchTrips]); // Removed refetchEmergencies to prevent excessive re-renders
 
   // Separate effect to check for existing active emergencies (runs only when emergencies data changes)
   useEffect(() => {
