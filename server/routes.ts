@@ -1015,6 +1015,14 @@ ${req.protocol}://${req.get('host')}/login/driver`;
       
       // PRIORITY: Emergency alerts get highest priority processing
       console.log(`[EMERGENCY TRIGGER - HIGH PRIORITY] Driver: ${driverNumber}, Vehicle: ${vehicleNumber}`);
+      console.log(`[EMERGENCY DEBUG] Request body keys:`, Object.keys(req.body));
+      console.log(`[EMERGENCY DEBUG] File received:`, req.file ? {
+        filename: req.file.filename,
+        originalname: req.file.originalname,
+        size: req.file.size,
+        mimetype: req.file.mimetype,
+        path: req.file.path
+      } : 'No file received');
       
       // Check if there's already an active emergency for this driver/vehicle (within last 2 minutes)
       const existingActive = await storage.getActiveEmergencyForDriverVehicle(driverNumber, vehicleNumber);
@@ -1107,6 +1115,13 @@ ${req.protocol}://${req.get('host')}/login/driver`;
       });
 
       console.log(`[EMERGENCY CREATED] ID: ${emergency.emergencyId}, Location: ${latitude}, ${longitude}, Video: ${videoUrl || 'none'}`);
+      console.log(`[EMERGENCY DEBUG] Emergency object:`, {
+        emergencyId: emergency.emergencyId,
+        driverNumber: emergency.driverNumber,
+        vehicleNumber: emergency.vehicleNumber,
+        videoUrl: emergency.videoUrl,
+        hasVideo: !!emergency.videoUrl
+      });
 
       // Get driver and vehicle details
       const driver = await storage.getDriverByDriverNumber(driverNumber);
@@ -1129,6 +1144,14 @@ ${req.protocol}://${req.get('host')}/login/driver`;
 
       io.emit(socketEvents.RECEIVE_EMERGENCY, emergencyData);
       console.log(`[SOCKET EMIT - IMMEDIATE] Emergency sent to MANAGER`);
+      console.log(`[SOCKET DEBUG] Emergency data being sent:`, {
+        emergencyId: emergencyData.emergencyId,
+        driverNumber: emergencyData.driverNumber,
+        vehicleNumber: emergencyData.vehicleNumber,
+        videoUrl: emergencyData.videoUrl,
+        hasVideo: !!emergencyData.videoUrl,
+        status: emergencyData.status
+      });
 
       // Send immediate response to driver
       res.status(201).json({

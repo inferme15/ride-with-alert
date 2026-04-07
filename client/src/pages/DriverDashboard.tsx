@@ -769,14 +769,32 @@ export default function DriverDashboard() {
         
         if (videoBlob && videoBlob.size > 0) {
           formData.append("video", videoBlob, "emergency-capture.webm");
-          console.log('✅ [EMERGENCY] Video attached to alert:', videoBlob.size, 'bytes');
+          console.log('✅ [EMERGENCY] Video attached to alert:', {
+            size: videoBlob.size,
+            type: videoBlob.type,
+            filename: "emergency-capture.webm"
+          });
         } else {
           console.warn('⚠️ [EMERGENCY] No video recorded, sending alert without video');
+          console.log('🔍 [DEBUG] Video blob details:', {
+            videoBlob,
+            size: videoBlob?.size,
+            type: videoBlob?.type
+          });
         }
 
         await triggerEmergency(formData);
 
         console.log('✅ Emergency alert sent to manager with video');
+        console.log('📋 [DEBUG] FormData contents:');
+        for (let [key, value] of formData.entries()) {
+          if (value instanceof File) {
+            console.log(`  ${key}: File(${value.name}, ${value.size} bytes, ${value.type})`);
+          } else {
+            console.log(`  ${key}: ${value}`);
+          }
+        }
+        
         setStatusMessage("🚨 EMERGENCY SENT TO MANAGER - Awaiting decision");
         toast({
           title: "🚨 Emergency Alert Sent!",
