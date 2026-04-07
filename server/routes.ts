@@ -440,7 +440,7 @@ SMS Service: Fast2SMS API
       // Build city route string
       let cityRoute = '';
       if (routeToUse.citiesOnRoute && routeToUse.citiesOnRoute.length > 0) {
-        cityRoute = '\n🛣️ *Route via:*\n';
+        cityRoute = '\n*Route via:*\n';
         routeToUse.citiesOnRoute.forEach((city: any, idx: number) => {
           cityRoute += `  ${idx + 1}. ${city.name}`;
           if (city.distanceFromStart > 0) {
@@ -453,7 +453,7 @@ SMS Service: Fast2SMS API
       // Build danger zones string
       let dangerZonesInfo = '';
       if (routeToUse.dangerZones && routeToUse.dangerZones.length > 0) {
-        dangerZonesInfo = '\n⚠️ *Danger Zones:*\n';
+        dangerZonesInfo = '\n*Danger Zones:*\n';
         routeToUse.dangerZones.forEach((zone: any, idx: number) => {
           dangerZonesInfo += `  ${idx + 1}. ${zone.location || zone.name || 'Unknown Location'}`;
           if (zone.riskLevel) {
@@ -463,30 +463,9 @@ SMS Service: Fast2SMS API
         });
       }
       
-      const smsMessage = `🚗 *Trip Assignment*
-
-*Vehicle:* ${vehicleNumber}
-*Driver:* ${driver.name}
-
-*Route:*
-📍 From: ${startLocation || 'Start Location'}
-🎯 To: ${endLocation || 'Destination'}
-${cityRoute}
-*Route Analysis:*
-✅ ${selectedRoute ? 'User-Selected Route' : 'Safest Route Selected'}
-📊 Safety Score: ${routeToUse.safetyMetrics?.overallSafetyScore || routeToUse.safetyScore}/100
-⚠️ Danger Zones: ${dangerZoneCount}
-🛣️ Distance: ${routeToUse.distance}km
-⏱️ Est. Time: ${routeToUse.estimatedTime} min
-${dangerZonesInfo}
-📍 *View Route on Map:*
-${routeToUse.mapUrl || `https://www.google.com/maps/dir/${startLatitude},${startLongitude}/${endLatitude},${endLongitude}`}
-
-*Login Credentials:*
-Username: ${temporaryUsername}
-Password: ${temporaryPassword}
-
-Login at: ${req.protocol}://${req.get('host')}/login/driver`;
+      const smsMessage = `Trip: ${vehicleNumber} - ${driver.name}
+Login: ${temporaryUsername}/${temporaryPassword}
+${req.protocol}://${req.get('host')}/login/driver`;
       
       console.log('📱 Sending SMS notification to driver:', driver.phoneNumber);
       await sendSMS(driver.phoneNumber, smsMessage);
@@ -835,7 +814,7 @@ Login at: ${req.protocol}://${req.get('host')}/login/driver`;
       const trip = await storage.cancelTrip(tripId);
       
       // Send cancellation SMS to driver
-      const whatsappMessage = `❌ *Trip Cancelled*\n\nYour trip assignment has been cancelled.\n\nVehicle: ${fullTrip.vehicleNumber}\nDriver: ${fullTrip.driver.name}\n\nPlease contact management for details.`;
+      const whatsappMessage = `*Trip Cancelled*\n\nYour trip assignment has been cancelled.\n\nVehicle: ${fullTrip.vehicleNumber}\nDriver: ${fullTrip.driver.name}\n\nPlease contact management for details.`;
       await sendSMS(fullTrip.driver.phoneNumber, whatsappMessage);
 
       res.json(trip);
@@ -1341,9 +1320,9 @@ Login at: ${req.protocol}://${req.get('host')}/login/driver`;
         if (activeTrip) {
           tripRouteInfo = `
 *Route:*
-📍 From: ${activeTrip.startLocation || 'Start Location'}
-🎯 To: ${activeTrip.endLocation || 'Destination'}
-🛣️ *Route via:*
+From: ${activeTrip.startLocation || 'Start Location'}
+To: ${activeTrip.endLocation || 'Destination'}
+*Route via:*
 1. ${activeTrip.startLocation?.split(',')[0] || 'Start'}
 2. Uthukuli (57km)
 3. Kumarapalayam (101km)
@@ -1383,15 +1362,15 @@ Login at: ${req.protocol}://${req.get('host')}/login/driver`;
       let facilitySection = '';
       
       if (facilitiesByType.medical.length > 0) {
-        facilitySection += `🏥 Medical Facilities: ${formatFacilityList(facilitiesByType.medical, 3)}\n`;
+        facilitySection += `Medical Facilities: ${formatFacilityList(facilitiesByType.medical, 3)}\n`;
       }
       
       if (facilitiesByType.police.length > 0) {
-        facilitySection += `🚓 Police & Emergency: ${formatFacilityList(facilitiesByType.police, 3)}\n`;
+        facilitySection += `Police & Emergency: ${formatFacilityList(facilitiesByType.police, 3)}\n`;
       }
       
       if (facilitiesByType.fuel.length > 0) {
-        facilitySection += `⛽ Fuel Centers: ${formatFacilityList(facilitiesByType.fuel, 2)}\n`;
+        facilitySection += `Fuel Centers: ${formatFacilityList(facilitiesByType.fuel, 2)}\n`;
       }
       
       if (facilitiesByType.service.length > 0) {
@@ -1432,19 +1411,19 @@ Login at: ${req.protocol}://${req.get('host')}/login/driver`;
 *Emergency ID:* ${emergencyId}${tripRouteInfo}
 
 *Medical Information:*
-🩸 Blood Group: ${driver.bloodGroup || 'Unknown'}
-💊 Medical Conditions: ${driver.medicalConditions || 'None reported'}
-� Emergency Contact: ${driver.emergencyContact || 'Not available'} (${driver.emergencyContactPhone || 'No phone'})
+Blood Group: ${driver.bloodGroup || 'Unknown'}
+Medical Conditions: ${driver.medicalConditions || 'None reported'}
+Emergency Contact: ${driver.emergencyContact || 'Not available'} (${driver.emergencyContactPhone || 'No phone'})
 
 *Nearby Emergency Resources:*
 ${facilitySection || 'No nearby facilities found'}
 
 *Emergency Contacts:*
-🚨 Police: 100 | Medical: 108 | Fire: 101
-📞 Driver Phone: ${driver.phoneNumber}
+Police: 100 | Medical: 108 | Fire: 101
+Driver Phone: ${driver.phoneNumber}
 
-📍 *GPS Location: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}*
-🛑 *TRIP HAS BEEN STOPPED*`;
+*GPS Location: ${latitude.toFixed(6)}, ${longitude.toFixed(6)}*
+*TRIP HAS BEEN STOPPED*`;
 
       // 5. SEND SMS TO POLICE AND HOSPITAL using Fast2SMS
       // Create detailed emergency messages with comprehensive information
