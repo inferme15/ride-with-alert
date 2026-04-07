@@ -114,7 +114,7 @@ export default function ManagerDashboard() {
 
   // Socket event listeners for real-time emergency alerts
   useEffect(() => {
-    if (!socket) return;
+    console.log("✅ [MANAGER] Setting up emergency listeners");
 
     const handleNewEmergency = (emergency: Emergency & { driver: Driver; vehicle: Vehicle }) => {
       console.log("🚨 [MANAGER] New emergency received:", emergency);
@@ -143,7 +143,7 @@ export default function ManagerDashboard() {
       unsubscribeEmergency?.();
       unsubscribeAck?.();
     };
-  }, [socket, subscribe, events, activeEmergency, toast, refetchEmergencies]);
+  }, [subscribe, events, toast, refetchEmergencies]); // Fixed: Removed socket and activeEmergency from dependencies to fix race condition
 
   // Geocode address to coordinates
   const geocodeAddress = async (address: string): Promise<{lat: number, lng: number} | null> => {
