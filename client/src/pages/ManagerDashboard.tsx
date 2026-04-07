@@ -132,7 +132,7 @@ export default function ManagerDashboard() {
       if (activeEmergency && data.emergencyId === activeEmergency.emergencyId) {
         setActiveEmergency(null);
       }
-      refetchEmergencies();
+      // Don't refetch here - socket updates will handle it
     };
 
     // Use RECEIVE_EMERGENCY event (this is what the server actually emits)
@@ -143,7 +143,7 @@ export default function ManagerDashboard() {
       unsubscribeEmergency?.();
       unsubscribeAck?.();
     };
-  }, [subscribe, events, toast, refetchEmergencies]); // Fixed: Removed socket and activeEmergency from dependencies to fix race condition
+  }, [subscribe, events, toast]); // Removed refetchEmergencies to prevent excessive re-renders
 
   // Geocode address to coordinates
   const geocodeAddress = async (address: string): Promise<{lat: number, lng: number} | null> => {
@@ -346,7 +346,7 @@ export default function ManagerDashboard() {
         [data.vehicleNumber]: 'active'
       }));
       
-      refetchEmergencies();
+      // Don't refetch emergencies on every GPS update - too expensive
     });
 
     // Listen for stop alarm to clear active emergency
@@ -363,7 +363,7 @@ export default function ManagerDashboard() {
         }
         return prev;
       });
-      refetchEmergencies();
+      // Don't refetch emergencies on stop alarm - socket handles updates
     });
 
     // Listen for trip completion

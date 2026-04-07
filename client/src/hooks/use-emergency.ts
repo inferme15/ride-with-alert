@@ -17,7 +17,9 @@ export function useEmergencies() {
       console.log('✅ [EMERGENCY HOOK] Emergencies loaded:', data.length);
       return data;
     },
-    refetchInterval: 5000, // Poll every 5s as backup to websockets
+    refetchInterval: 30000, // Reduced from 5s to 30s - we have real-time socket updates
+    staleTime: 10000, // Cache for 10 seconds
+    refetchOnWindowFocus: false, // Don't refetch when window gains focus
   });
 }
 
