@@ -391,6 +391,33 @@ export const api = {
       },
     },
   },
+  analytics: {
+    predictRisk: {
+      method: 'GET' as const,
+      path: '/api/ai/predict-risk/:vehicleNumber',
+      responses: {
+        200: z.object({
+          riskLevel: z.enum(['low', 'medium', 'high', 'critical']),
+          factors: z.array(z.string()),
+          score: z.number(),
+        }),
+        404: errorSchemas.notFound,
+      },
+    },
+    predictiveMaintenance: {
+      method: 'GET' as const,
+      path: '/api/analytics/predictive-maintenance',
+      responses: {
+        200: z.object({
+          vehicleNumber: z.string(),
+          healthScore: z.number(),
+          maintenanceNeeded: z.boolean(),
+          recommendations: z.array(z.string()),
+        }),
+        404: errorSchemas.notFound,
+      },
+    },
+  },
 };
 
 export const socketEvents = {

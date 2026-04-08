@@ -57,6 +57,7 @@ export default function ManagerDashboard() {
     driverNumber: "", 
     name: "", 
     phoneNumber: "", 
+    email: "",
     licenseNumber: "",
     bloodGroup: "",
     medicalConditions: "",
@@ -70,6 +71,7 @@ export default function ManagerDashboard() {
   const [editDriverData, setEditDriverData] = useState({ 
     name: "", 
     phoneNumber: "", 
+    email: "",
     licenseNumber: "",
     bloodGroup: "",
     medicalConditions: "",
@@ -574,6 +576,7 @@ export default function ManagerDashboard() {
         driverNumber: "", 
         name: "", 
         phoneNumber: "", 
+        email: "",
         licenseNumber: "",
         bloodGroup: "",
         medicalConditions: "",
@@ -1310,6 +1313,16 @@ export default function ManagerDashboard() {
                           required
                         />
                       </div>
+                      <div className="space-y-2">
+                        <Label>Email Address</Label>
+                        <Input 
+                          type="email"
+                          value={newDriver.email}
+                          onChange={e => setNewDriver({...newDriver, email: e.target.value})}
+                          placeholder="driver@example.com"
+                          required
+                        />
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <Label>License Number</Label>
@@ -1381,6 +1394,7 @@ export default function ManagerDashboard() {
                                 setEditDriverData({
                                   name: driver.name,
                                   phoneNumber: driver.phoneNumber,
+                                  email: driver.email || "",
                                   licenseNumber: driver.licenseNumber,
                                   bloodGroup: driver.bloodGroup || "",
                                   medicalConditions: driver.medicalConditions || "",
@@ -1409,11 +1423,13 @@ export default function ManagerDashboard() {
                                 setEditDriverData({ 
                                   name: "", 
                                   phoneNumber: "", 
+                                  email: "",
                                   licenseNumber: "",
                                   bloodGroup: "",
                                   medicalConditions: "",
                                   emergencyContact: "",
                                   emergencyContactPhone: ""
+                                });
                                 });
                               }
                             });
@@ -1432,6 +1448,16 @@ export default function ManagerDashboard() {
                                 <Input 
                                   value={editDriverData.phoneNumber}
                                   onChange={e => setEditDriverData({...editDriverData, phoneNumber: e.target.value})}
+                                  required
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label>Email Address</Label>
+                                <Input 
+                                  type="email"
+                                  value={editDriverData.email}
+                                  onChange={e => setEditDriverData({...editDriverData, email: e.target.value})}
+                                  placeholder="driver@example.com"
                                   required
                                 />
                               </div>
@@ -1489,9 +1515,13 @@ export default function ManagerDashboard() {
                                 setEditDriverData({ 
                                   name: "", 
                                   phoneNumber: "", 
+                                  email: "",
                                   licenseNumber: "",
                                   bloodGroup: "",
                                   medicalConditions: "",
+                                  emergencyContact: "",
+                                  emergencyContactPhone: ""
+                                });
                                   emergencyContact: "",
                                   emergencyContactPhone: ""
                                 });

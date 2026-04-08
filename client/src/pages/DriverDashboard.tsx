@@ -643,35 +643,36 @@ export default function DriverDashboard() {
     return () => clearTimeout(timer);
   }, []); // Run once on mount
 
-  // Fetch real-time analytics every 30 seconds
-  useEffect(() => {
-    if (trip?.vehicleNumber && location) {
-      const fetchRealTimeAnalytics = async () => {
-        try {
-          // Get risk prediction
-          const riskRes = await fetch(`/api/ai/predict-risk/${trip.vehicleNumber}`);
-          if (riskRes.ok) {
-            const riskData = await riskRes.json();
-            setCurrentRisk(riskData);
-          }
+  // TODO: Implement analytics endpoints on server
+  // Fetch real-time analytics every 30 seconds - DISABLED until endpoints are implemented
+  // useEffect(() => {
+  //   if (trip?.vehicleNumber && location) {
+  //     const fetchRealTimeAnalytics = async () => {
+  //       try {
+  //         // Get risk prediction
+  //         const riskRes = await fetch(`/api/ai/predict-risk/${trip.vehicleNumber}`);
+  //         if (riskRes.ok) {
+  //           const riskData = await riskRes.json();
+  //           setCurrentRisk(riskData);
+  //         }
 
-          // Get vehicle health
-          const healthRes = await fetch(`/api/analytics/predictive-maintenance?vehicleNumber=${trip.vehicleNumber}`);
-          if (healthRes.ok) {
-            const healthData = await healthRes.json();
-            setVehicleHealth(healthData);
-          }
-        } catch (error) {
-          console.error("Error fetching analytics:", error);
-        }
-      };
+  //         // Get vehicle health
+  //         const healthRes = await fetch(`/api/analytics/predictive-maintenance?vehicleNumber=${trip.vehicleNumber}`);
+  //         if (healthRes.ok) {
+  //           const healthData = await healthRes.json();
+  //           setVehicleHealth(healthData);
+  //         }
+  //       } catch (error) {
+  //         console.error("Error fetching analytics:", error);
+  //       }
+  //     };
 
-      fetchRealTimeAnalytics();
-      const interval = setInterval(fetchRealTimeAnalytics, 30000); // Every 30 seconds
+  //     fetchRealTimeAnalytics();
+  //     const interval = setInterval(fetchRealTimeAnalytics, 30000); // Every 30 seconds
 
-      return () => clearInterval(interval);
-    }
-  }, [trip, location]);
+  //     return () => clearInterval(interval);
+  //   }
+  // }, [trip, location]);
 
   const normalizeFacilityType = (type: string) => {
     const t = (type || "").toLowerCase();

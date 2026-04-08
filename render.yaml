@@ -24,6 +24,12 @@ services:
         value: "100"
       - key: HOSPITAL_PHONE
         value: "108"
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_APP_PASSWORD
+        sync: false
+      - key: EMERGENCY_EMAIL_RECIPIENTS
+        sync: false
 
 databases:
   - name: ridewithAlert-db

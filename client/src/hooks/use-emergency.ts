@@ -124,3 +124,45 @@ export function useAcknowledgeEmergency() {
     },
   });
 }
+
+export function useApproveRealEmergency() {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: async (emergencyId: number) => {
+      console.log('🚨 [REAL EMERGENCY] Approving real emergency:', emergencyId);
+      const res = await fetch("/api/emergency/approve-real", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ emergencyId }),
+        credentials: "include",
+      });
+      console.log('📡 [REAL EMERGENCY] Response:', res.status, res.statusText);
+      if (!res.ok) {
+        console.error('❌ [REAL EMERGENCY] Failed:', res.status);
+        throw new Error("Failed to approve real emergency");
+      }
+      const data = await res.json();
+      console.log('✅ [REAL EMERGENCY] Success - Emails sent to authorities:', data);
+      return data;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/emergencies"] });
+      toast({ 
+        title: "Real Emergency Confirmed", 
+        description: "Authorities have been notified via email. Emergency services dispatched.",
+        variant: "destructive",
+        duration: 10000
+      });
+    },
+    onError: (error) => {
+      toast({ 
+        title: "Failed to Notify Authorities", 
+        description: `Could not send emergency alerts: ${error.message}`,
+        variant: "destructive",
+        duration: 10000
+      });
+    }
+  });
+}

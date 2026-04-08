@@ -8,6 +8,7 @@ import { storage } from "./storage";
 import { api, socketEvents } from "@shared/routes";
 import { insertVehicleSchema, insertDriverSchema } from "@shared/schema";
 import { generateTemporaryCredentials, sendSMS, findNearbyFacilities, getLocationName, isLocationInIndia } from "./utils";
+import { EmailService } from "./email-service";
 import { z } from "zod";
 
 // Emergency notification phone numbers (configured)
@@ -515,6 +516,16 @@ Safe travels! 🛡️`;
       
       console.log('📱 Sending detailed SMS notification to driver:', driver.phoneNumber);
       await sendSMS(driver.phoneNumber, smsMessage);
+
+      // Send email notification with trip details and route map
+      try {
+        console.log('📧 Sending email notification to driver:', driver.email);
+        await EmailService.sendTripAssignment(driver, fullTrip, vehicle, routeToUse);
+        console.log('✅ Email notification sent successfully');
+      } catch (emailError) {
+        console.error('❌ Failed to send email notification:', emailError);
+        // Don't fail the trip assignment if email fails
+      }
 
       // Emit socket event with route analysis
       io.emit('TRIP_CREATED', {
@@ -1294,6 +1305,9 @@ Thank you for your service. 🙏`;
             status: 'ACTIVE'
           });
           console.log(`[SOCKET EMIT - UPDATED] Emergency updated with facilities and location`);
+
+          // NO automatic email sending - wait for manager decision
+          console.log('📧 Emergency created - waiting for manager decision (real vs false alarm)');
         } catch (error) {
           console.error("[BACKGROUND] Error fetching facilities/location:", error);
         }
@@ -1389,9 +1403,9 @@ Thank you for your service. 🙏`;
     }
   });
 
-  // NEW: Manager approves emergency and sends to police/hospital
-  app.post("/api/emergency/approve", async (req, res) => {
-    const { emergencyId, nearbyFacilities: facilitiesFromManager } = req.body;
+  // NEW: Manager approves emergency as REAL and sends to police/hospital
+  app.post("/api/emergency/approve-real", async (req, res) => {
+    const { emergencyId } = req.body;
     try {
       const fullEmergency = await storage.getEmergencyWithRelations(emergencyId);
       
@@ -1399,11 +1413,44 @@ Thank you for your service. 🙏`;
         return res.status(404).json({ message: "Emergency not found" });
       }
 
-      const { driver, vehicle, locationName } = fullEmergency;
+      const { driver, vehicle } = fullEmergency;
       const latitude = parseFloat(String(fullEmergency.latitude));
       const longitude = parseFloat(String(fullEmergency.longitude));
 
-      // Mark this emergency flow as acknowledged/handled before escalation.
+      // Get nearby facilities
+      const allFacilities = await findNearbyFacilities(latitude, longitude, POLICE_PHONE, HOSPITAL_PHONE);
+
+      // Send emails to police and hospitals for REAL emergency
+      try {
+        console.log('📧 Manager confirmed REAL emergency - sending alerts to authorities...');
+        await EmailService.sendRealEmergencyAlert(fullEmergency, driver, vehicle, allFacilities);
+        console.log('✅ Real emergency alerts sent to police and hospitals');
+      } catch (emailError) {
+        console.error('❌ Failed to send real emergency alerts:', emailError);
+        return res.status(500).json({ message: "Failed to send emergency alerts" });
+      }
+
+      // Update emergency status to indicate it's been escalated
+      await storage.updateEmergencyStatus(emergencyId, "ACKNOWLEDGED");
+
+      // Emit to all clients that this is a real emergency
+      io.emit(socketEvents.REAL_EMERGENCY_CONFIRMED, {
+        emergencyId,
+        driverNumber: fullEmergency.driverNumber,
+        vehicleNumber: fullEmergency.vehicleNumber,
+        message: "Emergency confirmed as REAL. Authorities have been notified."
+      });
+
+      res.json({ 
+        message: "Real emergency confirmed and authorities notified",
+        emergencyId,
+        emailsSent: true
+      });
+    } catch (err) {
+      console.error("Real Emergency Approval Error:", err);
+      res.status(500).json({ message: "Failed to process real emergency" });
+    }
+  });
       await storage.updateEmergencyStatus(emergencyId, "ACKNOWLEDGED");
       await storage.updateAllActiveEmergenciesForDriverVehicle(
         fullEmergency.driverNumber,

@@ -17,6 +17,7 @@ export const drivers = pgTable("drivers", {
   driverNumber: text("driver_number").notNull().unique(),
   name: text("name").notNull(),
   phoneNumber: text("phone_number").notNull(),
+  email: text("email").notNull(),
   licenseNumber: text("license_number").notNull(),
   bloodGroup: text("blood_group"),
   medicalConditions: text("medical_conditions"),

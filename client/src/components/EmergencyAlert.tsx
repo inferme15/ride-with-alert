@@ -10,7 +10,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { type Emergency, type Vehicle, type Driver } from "@shared/schema";
-import { useAcknowledgeEmergency } from "@/hooks/use-emergency";
+import { useAcknowledgeEmergency, useApproveRealEmergency } from "@/hooks/use-emergency";
 import { useSocket } from "@/hooks/use-socket";
 import { useToast } from "@/hooks/use-toast";
 
@@ -28,13 +28,16 @@ interface AlarmState {
 
 export function EmergencyAlert({ emergency, onClose, onRealEmergency, onFalseAlarm }: EmergencyAlertProps) {
   const alarmRef = useRef<AlarmState>({});
-  const { mutate: acknowledge, isPending } = useAcknowledgeEmergency();
+  const { mutate: acknowledge, isPending: isAcknowledging } = useAcknowledgeEmergency();
+  const { mutate: approveRealEmergency, isPending: isApprovingReal } = useApproveRealEmergency();
   const [isOpen, setIsOpen] = useState(false);
   const [isAlarmPlaying, setIsAlarmPlaying] = useState(false);
   const [decisionCountdown, setDecisionCountdown] = useState(0);
   const [showVideoSection, setShowVideoSection] = useState(true);
   const { subscribe, events } = useSocket();
   const { toast } = useToast();
+
+  const isPending = isAcknowledging || isApprovingReal;
 
   useEffect(() => {
     if (emergency && emergency.status === "ACTIVE" && !isOpen) {
@@ -158,7 +161,7 @@ export function EmergencyAlert({ emergency, onClose, onRealEmergency, onFalseAla
     }
   }, [emergency?.status, onClose]);
 
-  const handleRealEmergency = async () => {
+  const handleRealEmergency = () => {
     if (!emergency || isPending) return;
     
     // Stop alarm immediately
@@ -172,49 +175,30 @@ export function EmergencyAlert({ emergency, onClose, onRealEmergency, onFalseAla
       alarmRef.current.audioContext = undefined;
     }
     
-    // Close dialog immediately
-    setIsOpen(false);
-    onClose();
-    
-    // Real emergency flow: stop trip + notify police/hospital in backend.
-    try {
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-      const response = await fetch('/api/emergency/approve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          emergencyId: emergency.emergencyId,
-          nearbyFacilities: (emergency as any).nearbyFacilities || []
-        }),
-        signal: controller.signal
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const text = await response.text();
-        throw new Error(text || "Failed to approve emergency");
+    // Use the new hook to approve real emergency and send emails
+    approveRealEmergency(emergency.emergencyId, {
+      onSuccess: () => {
+        toast({
+          title: "🚨 Real Emergency Confirmed",
+          description: "Police and hospitals have been notified via email. Emergency services dispatched.",
+          variant: "destructive",
+          duration: 10000
+        });
+        onRealEmergency?.(emergency.emergencyId);
+        setIsOpen(false);
+        onClose();
+      },
+      onError: (error) => {
+        console.error("Failed to process real emergency:", error);
+        setIsAlarmPlaying(true);
+        toast({
+          title: "❌ Failed to Notify Authorities",
+          description: "Could not send emergency alerts. Please try again or call directly.",
+          variant: "destructive",
+          duration: 10000
+        });
       }
-
-      toast({
-        title: "Real Emergency Confirmed",
-        description: "Trip stopped. Police and Hospital notified.",
-        variant: "default"
-      });
-      onRealEmergency?.(emergency.emergencyId);
-      setIsOpen(false);
-      onClose();
-    } catch (error) {
-      console.error("Failed to process real emergency:", error);
-      setIsAlarmPlaying(true);
-      toast({
-        title: "Approval Failed",
-        description: "Could not process real emergency. Please try again.",
-        variant: "destructive"
-      });
-    }
+    });
   };
 
   const handleFalseAlarm = () => {
