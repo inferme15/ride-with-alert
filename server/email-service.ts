@@ -1,20 +1,26 @@
-import nodemailer from 'nodemailer';
+import * as nodemailer from 'nodemailer';
 import type { Driver, Emergency, Trip, Vehicle, NearbyFacility } from '../shared/schema';
 
-// FORCE IPv4 to fix Gmail SMTP connectivity issues
-import dns from 'dns';
-dns.setDefaultResultOrder('ipv4first');
-
-// Gmail SMTP configuration with IPv4 fix
-const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true,
+// QUICK FIX: Use Gmail service with better error handling
+const transporter = nodemailer.createTransporter({
+  service: 'gmail',
   auth: {
     user: process.env.EMAIL_USER?.trim().replace(/\\n/g, '').replace(/\n/g, ''),
     pass: process.env.EMAIL_APP_PASSWORD?.trim().replace(/\\n/g, '').replace(/\n/g, ''),
   },
-  family: 4 // Force IPv4
+  tls: {
+    rejectUnauthorized: false
+  }
+});
+
+// Test connection on startup
+transporter.verify((error, success) => {
+  if (error) {
+    console.error('❌ Email service connection failed:', error.message);
+    console.error('🔧 Check your Gmail App Password in Render environment variables');
+  } else {
+    console.log('✅ Email service is ready to send emails');
+  }
 });
 
 // Email templates

@@ -11,10 +11,6 @@ import { generateTemporaryCredentials, findNearbyFacilities, getLocationName, is
 import { EmailService } from "./email-service";
 import { z } from "zod";
 
-// FORCE IPv4 to fix Gmail SMTP connectivity issues
-import dns from "dns";
-dns.setDefaultResultOrder('ipv4first');
-
 // Ensure uploads directory exists
 const uploadDir = path.join(process.cwd(), "uploads");
 if (!fs.existsSync(uploadDir)) {
@@ -496,6 +492,7 @@ This message is for testing purposes only. Please do not panic.`;
         console.log('✅ Email notification sent successfully');
       } catch (emailError) {
         console.error('❌ Failed to send email notification:', emailError);
+        console.log('⚠️ Trip assignment continues despite email failure');
         // Don't fail the trip assignment if email fails
       }
 
