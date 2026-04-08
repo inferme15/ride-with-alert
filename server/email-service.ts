@@ -1,23 +1,39 @@
 import nodemailer from 'nodemailer';
 import type { Driver, Emergency, Trip, Vehicle, NearbyFacility } from '../shared/schema';
 
-// QUICK FIX: Use correct nodemailer import
+// QUICK FIX: Use correct nodemailer import with debug logging
+const emailUser = process.env.EMAIL_USER?.trim().replace(/\\n/g, '').replace(/\n/g, '');
+const emailPass = process.env.EMAIL_APP_PASSWORD?.trim().replace(/\\n/g, '').replace(/\n/g, '');
+
+console.log('🔍 Email Debug Info:', {
+  hasEmailUser: !!emailUser,
+  emailUserLength: emailUser?.length,
+  hasEmailPass: !!emailPass,
+  emailPassLength: emailPass?.length,
+  emailUserSample: emailUser?.substring(0, 10) + '...',
+  emailPassSample: emailPass?.substring(0, 4) + '...'
+});
+
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER?.trim().replace(/\\n/g, '').replace(/\n/g, ''),
-    pass: process.env.EMAIL_APP_PASSWORD?.trim().replace(/\\n/g, '').replace(/\n/g, ''),
+    user: emailUser,
+    pass: emailPass,
   },
-  tls: {
-    rejectUnauthorized: false
-  }
+  debug: true, // Enable debug logging
+  logger: true // Enable logger
 });
 
-// Test connection on startup
+// Test connection on startup with detailed error info
 transporter.verify((error, success) => {
   if (error) {
-    console.error('❌ Email service connection failed:', error.message);
-    console.error('🔧 Check your Gmail App Password in Render environment variables');
+    console.error('❌ Email service connection failed:', error);
+    console.error('🔧 Error details:', {
+      code: error.code,
+      command: error.command,
+      response: error.response,
+      responseCode: error.responseCode
+    });
   } else {
     console.log('✅ Email service is ready to send emails');
   }
