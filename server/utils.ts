@@ -118,7 +118,7 @@ export async function sendSMS(phoneNumber: string, message: string): Promise<{ s
     const url = `https://www.fast2sms.com/dev/bulkV2`;
     
     const requestBody = {
-      route: "dlt",
+      route: "otp",
       message: truncatedMessage,
       numbers: formattedNumber,
       flash: "0"
@@ -158,6 +158,10 @@ export async function sendSMS(phoneNumber: string, message: string): Promise<{ s
         console.log(`[SMS FAILED ❌] DLT Route Issue: ${result.message}`);
         console.log(`[SMS INFO] 💡 You may need to register DLT templates with Fast2SMS`);
         console.log(`[SMS INFO] 💡 Visit: https://www.fast2sms.com/dlt-registration`);
+      } else if (result.status_code === 406) {
+        console.log(`[SMS FAILED ❌] Invalid Sender ID: ${result.message}`);
+        console.log(`[SMS INFO] 💡 Check your Fast2SMS dashboard for approved Sender IDs`);
+        console.log(`[SMS INFO] 💡 Visit: https://www.fast2sms.com/dashboard`);
       } else {
         console.log(`[SMS FAILED ❌] ${result.message || "Unknown error"}`);
       }
