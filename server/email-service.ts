@@ -1,42 +1,14 @@
 import * as nodemailer from 'nodemailer';
 import type { Driver, Emergency, Trip, Vehicle, NearbyFacility } from '../shared/schema';
 
-// Email configuration with fallback
-let transporter: nodemailer.Transporter;
-
-// Try SSL first (port 465), then fallback to STARTTLS (port 587)
-const createTransporter = () => {
-  const emailUser = process.env.EMAIL_USER?.trim().replace(/\\n/g, '').replace(/\n/g, '');
-  const emailPassword = process.env.EMAIL_APP_PASSWORD?.trim().replace(/\\n/g, '').replace(/\n/g, '');
-  
-  console.log('📧 Creating email transporter with:', {
-    user: emailUser,
-    hasPassword: !!emailPassword,
-    userLength: emailUser?.length,
-    passwordLength: emailPassword?.length,
-    rawUser: process.env.EMAIL_USER
-  });
-
-  // Primary configuration: Force IPv4 SSL on port 465
-  return nodemailer.createTransport({
-    host: 'smtp.gmail.com',
-    port: 465,
-    secure: true, // Use SSL
-    auth: {
-      user: emailUser,
-      pass: emailPassword,
-    },
-    tls: {
-      rejectUnauthorized: false
-    },
-    family: 4, // Force IPv4 to avoid IPv6 connectivity issues
-    connectionTimeout: 10000, // 10 seconds
-    greetingTimeout: 5000, // 5 seconds
-    socketTimeout: 10000, // 10 seconds
-  });
-};
-
-transporter = createTransporter();
+// QUICK FIX: Use Gmail service instead of manual SMTP
+const transporter = nodemailer.createTransporter({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER?.trim().replace(/\\n/g, '').replace(/\n/g, ''),
+    pass: process.env.EMAIL_APP_PASSWORD?.trim().replace(/\\n/g, '').replace(/\n/g, ''),
+  }
+});
 
 // Email templates
 export class EmailService {
@@ -147,70 +119,8 @@ export class EmailService {
       console.log('✅ Trip assignment email sent successfully:', result.messageId);
     } catch (error) {
       console.error('❌ Error sending trip assignment email:', error);
-      console.error('📧 Email config debug:', {
-        host: 'smtp.gmail.com',
-        port: 465,
-        user: emailUser,
-        hasPassword: !!process.env.EMAIL_APP_PASSWORD,
-        driverEmail: driverEmail
-      });
-      
-      // Try fallback configuration with port 587
-      console.log('🔄 Trying fallback SMTP configuration...');
-      try {
-        // Try multiple fallback configurations
-        const fallbackConfigs = [
-          {
-            name: 'STARTTLS Port 587',
-            config: {
-              host: 'smtp.gmail.com',
-              port: 587,
-              secure: false,
-              auth: { user: emailUser, pass: process.env.EMAIL_APP_PASSWORD?.trim() },
-              tls: { rejectUnauthorized: false }
-            }
-          },
-          {
-            name: 'IPv4 Force SSL 465',
-            config: {
-              host: 'smtp.gmail.com',
-              port: 465,
-              secure: true,
-              auth: { user: emailUser, pass: process.env.EMAIL_APP_PASSWORD?.trim() },
-              tls: { rejectUnauthorized: false },
-              family: 4 // Force IPv4
-            }
-          },
-          {
-            name: 'IPv4 Force STARTTLS 587',
-            config: {
-              host: 'smtp.gmail.com',
-              port: 587,
-              secure: false,
-              auth: { user: emailUser, pass: process.env.EMAIL_APP_PASSWORD?.trim() },
-              tls: { rejectUnauthorized: false },
-              family: 4 // Force IPv4
-            }
-          }
-        ];
-
-        for (const { name, config } of fallbackConfigs) {
-          try {
-            console.log(`🔄 Trying ${name}...`);
-            const fallbackTransporter = nodemailer.createTransport(config);
-            const fallbackResult = await fallbackTransporter.sendMail(mailOptions);
-            console.log(`✅ Trip assignment email sent via ${name}:`, fallbackResult.messageId);
-            return; // Success, exit the function
-          } catch (configError) {
-            console.log(`❌ ${name} failed:`, configError.message);
-          }
-        }
-        
-        throw new Error('All fallback configurations failed');
-      } catch (fallbackError) {
-        console.error('❌ All email configurations failed:', fallbackError);
-        throw error; // Throw original error
-      }
+      // Don't fail the trip assignment if email fails
+      console.log('⚠️ Trip assignment continues despite email failure');
     }
   }
 
