@@ -68,10 +68,10 @@ export default function DriverDashboard() {
   const calculateTripProgress = (currentLat: number, currentLng: number): number => {
     if (!trip?.startLatitude || !trip?.endLatitude) return 0;
     
-    const startLat = parseFloat(trip.startLatitude);
-    const startLng = parseFloat(trip.startLongitude);
-    const endLat = parseFloat(trip.endLatitude);
-    const endLng = parseFloat(trip.endLongitude);
+    const startLat = parseFloat(trip.startLatitude || "0");
+    const startLng = parseFloat(trip.startLongitude || "0");
+    const endLat = parseFloat(trip.endLatitude || "0");
+    const endLng = parseFloat(trip.endLongitude || "0");
     
     const totalDistance = calculateDistance(startLat, startLng, endLat, endLng);
     const distanceFromStart = calculateDistance(startLat, startLng, currentLat, currentLng);
@@ -798,7 +798,19 @@ export default function DriverDashboard() {
         // PHASE 2: Send to manager (should reach manager at 12 seconds)
         await triggerEmergency(formData);
 
+<<<<<<< HEAD
         console.log('✅ [PERFECT FLOW] Emergency alert sent to manager at 12 seconds');
+=======
+        console.log('✅ Emergency alert sent to manager with video');
+        console.log('📋 [DEBUG] FormData contents:');
+        formData.forEach((value, key) => {
+          if (value instanceof File) {
+            console.log(`  ${key}: File(${value.name}, ${value.size} bytes, ${value.type})`);
+          } else {
+            console.log(`  ${key}: ${value}`);
+          }
+        });
+>>>>>>> d0fb7ba1ebd2d8e784cf7390744ffffc012e0759
         
         // PHASE 3: Driver sees confirmation
         setStatusMessage("🚨 EMERGENCY SENT! Manager reviewing (10s decision window)");

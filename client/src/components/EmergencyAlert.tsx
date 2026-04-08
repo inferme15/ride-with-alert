@@ -392,10 +392,60 @@ export function EmergencyAlert({ emergency, onClose, onRealEmergency, onFalseAla
           </div>
 
           <div className="space-y-2">
+<<<<<<< HEAD
             <div className="bg-black rounded-xl overflow-hidden aspect-video relative flex items-center justify-center group">
               {emergency.videoUrl ? (
                 <>
                   <video 
+=======
+            <Button
+              variant="outline"
+              size="sm"
+              className="w-full"
+              onClick={() => setShowVideoSection((prev) => !prev)}
+            >
+              {showVideoSection ? "Hide Video Section" : "Show Video Section"}
+            </Button>
+            {showVideoSection && (
+              <div className="bg-black rounded-xl overflow-hidden aspect-video relative flex items-center justify-center group">
+                {emergency.videoUrl ? (
+              <>
+                <video 
+                  src={emergency.videoUrl.startsWith('http') ? emergency.videoUrl : `${window.location.origin}${emergency.videoUrl}`}
+                  controls
+                  autoPlay
+                  muted
+                  playsInline
+                  preload="auto"
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    console.error("❌ [VIDEO DISPLAY] Video playback error:", e);
+                    console.log("🔍 [VIDEO DEBUG] Video URL:", emergency.videoUrl);
+                    console.log("🔍 [VIDEO DEBUG] Full URL:", emergency.videoUrl?.startsWith('http') ? emergency.videoUrl : `${window.location.origin}${emergency.videoUrl}`);
+                    console.log("🔍 [VIDEO DEBUG] Emergency object:", emergency);
+                  }}
+                  onLoadStart={() => {
+                    console.log("📺 [VIDEO DISPLAY] Video loading started");
+                    console.log("🔍 [VIDEO DEBUG] Loading URL:", emergency.videoUrl?.startsWith('http') ? emergency.videoUrl : `${window.location.origin}${emergency.videoUrl}`);
+                  }}
+                  onLoadedData={() => {
+                    console.log("✅ [VIDEO DISPLAY] Video data loaded successfully");
+                  }}
+                  onCanPlay={() => {
+                    console.log("▶️ [VIDEO DISPLAY] Video can play");
+                  }}
+                  onLoadedMetadata={(e) => {
+                    const video = e.target as HTMLVideoElement;
+                    console.log("📊 [VIDEO DISPLAY] Video metadata loaded:", {
+                      duration: video.duration,
+                      videoWidth: video.videoWidth,
+                      videoHeight: video.videoHeight,
+                      readyState: video.readyState
+                    });
+                  }}
+                >
+                  <source 
+>>>>>>> d0fb7ba1ebd2d8e784cf7390744ffffc012e0759
                     src={emergency.videoUrl.startsWith('http') ? emergency.videoUrl : `${window.location.origin}${emergency.videoUrl}`}
                     controls
                     autoPlay
@@ -457,8 +507,25 @@ export function EmergencyAlert({ emergency, onClose, onRealEmergency, onFalseAla
                 <div className="absolute top-2 right-2 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded animate-pulse">
                   🔴 LIVE EMERGENCY
                 </div>
+<<<<<<< HEAD
               )}
             </div>
+=======
+                <div className="text-xs text-gray-400 mt-2">
+                  {(() => { console.log("⚠️ [VIDEO DEBUG] No video URL available:", { emergency, videoUrl: emergency.videoUrl }); return null; })()}
+                  Debug: No video URL in emergency data
+                </div>
+              </div>
+            )}
+            
+            {emergency.status === "ACTIVE" && (
+              <div className="absolute top-2 right-2 bg-red-600 text-white text-xs font-bold px-2 py-1 rounded animate-pulse">
+                LIVE
+              </div>
+            )}
+              </div>
+            )}
+>>>>>>> d0fb7ba1ebd2d8e784cf7390744ffffc012e0759
           </div>
         </div>
 
