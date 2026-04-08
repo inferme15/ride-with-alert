@@ -1077,6 +1077,12 @@ Thank you for your service. 🙏`;
 
 
   // === EMERGENCY API ===
+  // Test route to verify server is working
+  app.get('/api/emergency/test', (req, res) => {
+    console.log('🧪 [TEST ROUTE] Emergency test route hit!');
+    res.json({ message: 'Emergency API is working', timestamp: new Date().toISOString() });
+  });
+
   app.post(api.emergency.trigger.path, upload.single("video"), async (req, res) => {
     console.log(`🚨 [EMERGENCY TRIGGER] Route hit! Method: ${req.method}, Path: ${req.path}`);
     console.log(`🚨 [EMERGENCY TRIGGER] Headers:`, req.headers);

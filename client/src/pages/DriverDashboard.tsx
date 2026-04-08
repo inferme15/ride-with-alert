@@ -806,17 +806,38 @@ export default function DriverDashboard() {
         // Test server connectivity first
         console.log('🔍 [PERFECT FLOW] Testing server connectivity...');
         try {
+          // Test emergency API specifically
+          const emergencyTestResponse = await fetch('/api/emergency/test', { 
+            method: 'GET',
+            credentials: 'include'
+          });
+          console.log('✅ [PERFECT FLOW] Emergency API test:', {
+            status: emergencyTestResponse.status,
+            ok: emergencyTestResponse.ok,
+            url: emergencyTestResponse.url
+          });
+          
+          if (emergencyTestResponse.ok) {
+            const testData = await emergencyTestResponse.json();
+            console.log('📋 [PERFECT FLOW] Emergency API response:', testData);
+          }
+        } catch (emergencyTestError) {
+          console.error('❌ [PERFECT FLOW] Emergency API test failed:', emergencyTestError);
+        }
+        
+        // Test general server connectivity
+        try {
           const testResponse = await fetch('/api/trips/list', { 
             method: 'GET',
             credentials: 'include'
           });
-          console.log('✅ [PERFECT FLOW] Server connectivity test:', {
+          console.log('✅ [PERFECT FLOW] General server connectivity test:', {
             status: testResponse.status,
             ok: testResponse.ok,
             url: testResponse.url
           });
         } catch (testError) {
-          console.error('❌ [PERFECT FLOW] Server connectivity test failed:', testError);
+          console.error('❌ [PERFECT FLOW] General server connectivity test failed:', testError);
         }
         
         const formData = new FormData();
