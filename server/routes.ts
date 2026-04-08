@@ -242,6 +242,38 @@ This message is for testing purposes only. Please do not panic.`;
     }
   });
 
+  // Simple email connectivity test
+  app.get("/api/email/test-connection", async (req, res) => {
+    try {
+      console.log('🧪 Testing email connection...');
+      const isReady = await EmailService.testConnection();
+      
+      if (isReady) {
+        res.json({ 
+          status: 'success', 
+          message: 'Email service is ready',
+          config: {
+            host: 'smtp.gmail.com',
+            user: process.env.EMAIL_USER?.trim().replace(/\\n/g, '').replace(/\n/g, ''),
+            hasPassword: !!process.env.EMAIL_APP_PASSWORD
+          }
+        });
+      } else {
+        res.status(500).json({ 
+          status: 'error', 
+          message: 'Email service connection failed' 
+        });
+      }
+    } catch (error) {
+      console.error('Email connection test failed:', error);
+      res.status(500).json({ 
+        status: 'error', 
+        message: 'Email connection test failed',
+        error: error instanceof Error ? error.message : String(error)
+      });
+    }
+  });
+
   // === AUTH API ===
   app.post(api.auth.managerLogin.path, async (req, res) => {
     const { username, password } = req.body;

@@ -17,7 +17,7 @@ const createTransporter = () => {
     rawUser: process.env.EMAIL_USER
   });
 
-  // Primary configuration: SSL on port 465
+  // Primary configuration: Force IPv4 SSL on port 465
   return nodemailer.createTransport({
     host: 'smtp.gmail.com',
     port: 465,
@@ -29,6 +29,7 @@ const createTransporter = () => {
     tls: {
       rejectUnauthorized: false
     },
+    family: 4, // Force IPv4 to avoid IPv6 connectivity issues
     connectionTimeout: 10000, // 10 seconds
     greetingTimeout: 5000, // 5 seconds
     socketTimeout: 10000, // 10 seconds
@@ -157,23 +158,57 @@ export class EmailService {
       // Try fallback configuration with port 587
       console.log('🔄 Trying fallback SMTP configuration...');
       try {
-        const fallbackTransporter = nodemailer.createTransport({
-          host: 'smtp.gmail.com',
-          port: 587,
-          secure: false, // Use STARTTLS
-          auth: {
-            user: emailUser,
-            pass: process.env.EMAIL_APP_PASSWORD?.trim(),
+        // Try multiple fallback configurations
+        const fallbackConfigs = [
+          {
+            name: 'STARTTLS Port 587',
+            config: {
+              host: 'smtp.gmail.com',
+              port: 587,
+              secure: false,
+              auth: { user: emailUser, pass: process.env.EMAIL_APP_PASSWORD?.trim() },
+              tls: { rejectUnauthorized: false }
+            }
           },
-          tls: {
-            rejectUnauthorized: false
+          {
+            name: 'IPv4 Force SSL 465',
+            config: {
+              host: 'smtp.gmail.com',
+              port: 465,
+              secure: true,
+              auth: { user: emailUser, pass: process.env.EMAIL_APP_PASSWORD?.trim() },
+              tls: { rejectUnauthorized: false },
+              family: 4 // Force IPv4
+            }
+          },
+          {
+            name: 'IPv4 Force STARTTLS 587',
+            config: {
+              host: 'smtp.gmail.com',
+              port: 587,
+              secure: false,
+              auth: { user: emailUser, pass: process.env.EMAIL_APP_PASSWORD?.trim() },
+              tls: { rejectUnauthorized: false },
+              family: 4 // Force IPv4
+            }
           }
-        });
+        ];
+
+        for (const { name, config } of fallbackConfigs) {
+          try {
+            console.log(`🔄 Trying ${name}...`);
+            const fallbackTransporter = nodemailer.createTransport(config);
+            const fallbackResult = await fallbackTransporter.sendMail(mailOptions);
+            console.log(`✅ Trip assignment email sent via ${name}:`, fallbackResult.messageId);
+            return; // Success, exit the function
+          } catch (configError) {
+            console.log(`❌ ${name} failed:`, configError.message);
+          }
+        }
         
-        const fallbackResult = await fallbackTransporter.sendMail(mailOptions);
-        console.log('✅ Trip assignment email sent via fallback:', fallbackResult.messageId);
+        throw new Error('All fallback configurations failed');
       } catch (fallbackError) {
-        console.error('❌ Fallback email also failed:', fallbackError);
+        console.error('❌ All email configurations failed:', fallbackError);
         throw error; // Throw original error
       }
     }
