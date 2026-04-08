@@ -1430,7 +1430,6 @@ export default function ManagerDashboard() {
                                   emergencyContact: "",
                                   emergencyContactPhone: ""
                                 });
-                                });
                               }
                             });
                           }} className="space-y-4">
