@@ -1521,9 +1521,6 @@ export default function ManagerDashboard() {
                                   emergencyContact: "",
                                   emergencyContactPhone: ""
                                 });
-                                  emergencyContact: "",
-                                  emergencyContactPhone: ""
-                                });
                               }}>
                                 Cancel
                               </Button>
